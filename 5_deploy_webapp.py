@@ -33,32 +33,28 @@ DATI_OLD = '19930417_0000'
 
 @st.cache()
 def get_df_proba():
+    # api call to get df_proba
     url = 'http://localhost:5000/proba'
     headers = {'content-type': 'application/json', 'Accept-Charset': 'UTF-8'}
     r = requests.post(url, data='', headers=headers)
     data = json.loads(r.text)
     df = pd.DataFrame(**data)
-    #df_raw = df.copy()
-    #df['datetime'] = pd.to_datetime(df['datetime'], unit='ms')
-    #df['datetime_update'] = pd.to_datetime(df['datetime_update'], unit='ms')
     for col in ['datetime', 'datetime_update']:
         df[col] = pd.to_datetime(df[col]).dt.round('min')
-    return df
-
-@st.cache()
-def get_df_proba_sm(df):
+    df_proba = df.copy()
+    # create summary of df_proba
     df1 = (df
             .sort_values('proba',ascending=0)
-            .drop_duplicates(subset=['sym'], keep='first'))
-    df1 = df1[['sym', 'proba', 'datetime_update']]
-    df1 = df1.rename(columns={'proba':'proba_max'})
+            .drop_duplicates(subset=['sym'], keep='first')
+            .rename(columns={'proba':'proba_max'}))
+    df1 = df1[['sym', 'proba_max', 'datetime_update']]
     df2 = (df
             .sort_values('datetime',ascending=0)
-            .drop_duplicates(subset=['sym'], keep='first'))
-    df2 = df2[['sym', 'datetime', 'proba']]
-    df2 = df2.rename(columns={'datetime':'datetime_last', 'proba':'proba_last'})
+            .drop_duplicates(subset=['sym'], keep='first')
+            .rename(columns={'datetime':'datetime_last', 'proba':'proba_last'}))
+    df2 = df2[['sym', 'datetime_last', 'proba_last']]
     df_proba_sm = pd.merge(df1, df2, how='left', on='sym')
-    return df_proba_sm
+    return df_proba, df_proba_sm
 
 def get_links(sym):
     links = (TEXT_LINKS.format(get_google_link(sym), get_yahoo_link(sym)))
@@ -121,29 +117,33 @@ def get_fig(df):
             tick.set_rotation(45)
     return fig
 
+def generate_chart(df_proba, sym):
+    date_str = df_proba['datetime'].astype('str').to_list()[0][:10]
+    live_data, target_profit, target_loss = (1, 0.011, -0.031)
+    df_c = get_df_c(sym, date_str, live_data, db, target_profit, target_loss)
+    df_c = pd.merge(df_c, df_proba[['sym','datetime','proba']], how='left', on=['sym', 'datetime'])
+    fig = get_fig(df_c)
+    st.pyplot(fig)
+
 try:
+    # main
     st.set_page_config(layout='wide')
-    # add/remove symbols
+    c1, c2, c3, c4, c5  = st.beta_columns((1,4,1,4,1))
+    # sidebar - add/remove symbols
     ls_sym_add = st.sidebar.text_input('Add symbols manually (e.g. BYND, IBM)').replace(' ','').upper().split(',')
-    if ls_sym_add == ['']: ls_sym_add = []
     ls_sym_rem = st.sidebar.text_input('Remove symbols manually (e.g. SPOT, BA)').replace(' ','').upper().split(',')
     ls_sym_entry = st.sidebar.text_input('Enter entry positions (e.g. TSLA, 630.5 )').replace(' ','').upper().split(',')
-    # get sort params
-    ls_sort_params = ['proba_last', 'datetime_last', 'sym']
-    sort_params = st.sidebar.radio('Sort By', ls_sort_params)
+    if ls_sym_add == ['']: ls_sym_add = []
+    # sidebar - get sort params
+    sort_params = st.sidebar.radio('Sort By', ['proba_last', 'datetime_last', 'sym'])
     ascending = 1 if sort_params == 'sym' else 0
-    # main
-    dum1, col1, dum2, col2, dum3  = st.beta_columns((2,3,1,4,2))
-    with col1:
+    with c2:
         st.write(TEXT_TITLE)
-        # refresh button
-        if st.button('Refresh'): caching.clear_cache()
+        if st.button('Refresh'): caching.clear_cache() # refresh button
         # api call to get proba
-        df_proba = get_df_proba()
-        df_proba_sm = get_df_proba_sm(df_proba)
-        # get proba_last filter params
-        tup_proba_last = st.slider('Profit probability range', min_value=0.0, max_value=1.0, value=(0.75,1.0), step=0.05)
-        # get past_mins filter params
+        df_proba, df_proba_sm = get_df_proba()
+        # filter params
+        tup_proba_last = st.slider('Profit probability range', min_value=0.0, max_value=1.0, value=(0.7,1.0), step=0.05)
         ls_past_mins = [str(x+1) for x in range(9)] + [str(x+1) for x in range(10-1, 60, 10)] + ['All']
         past_mins = st.select_slider('Past minutes to show', ls_past_mins, 'All')
         if past_mins == 'All':
@@ -154,30 +154,23 @@ try:
         index = ((df_proba_sm['proba_last']>=tup_proba_last[0])
                     &(df_proba_sm['proba_last']<=tup_proba_last[1])
                     &(df_proba_sm['datetime_last'].dt.strftime('%Y%m%d_%H%M')>=dati_target_str))
-        ls_sym_all = df_proba_sm[index].sort_values(sort_params, ascending=ascending)['sym'].to_list() #sorted(df_proba_sm[index]['sym'].to_list())
-        ls_sym = st.multiselect('Choose symbols', ls_sym_all, ls_sym_all)
+        ls_sym = df_proba_sm[index].sort_values(sort_params, ascending=ascending)['sym'].to_list()
         # df_proba_sm
         ls_col = ['sym', 'datetime_last', 'proba_last']
-        st.write(df_proba_sm[df_proba_sm['sym'].isin(ls_sym)][ls_col].sort_values(sort_params, ascending=ascending))
         # add, remove sym
         ls_sym = list(set(ls_sym + ls_sym_add))
         ls_sym = [x for x in ls_sym if x not in ls_sym_rem]
         if ls_sym:
-            with col2:
+            with c4:
+                # single symbol selection
                 df_sym = get_df_sym(ls_sym, db)
                 df_sym = pd.merge(df_sym, df_proba_sm, how='left', on='sym').sort_values(sort_params, ascending=ascending)
                 ls_sym_mod = (df_sym['sym'] + ' - ' + df_sym['ind'] + ' - ' + df_sym['proba_last'].astype('str').str[:4]).to_list()
                 sym = st.selectbox('Select one symbol', ls_sym_mod, index=0).split()[0]
-                dt_sym = df_sym[df_sym['sym']==sym].reset_index().to_dict('index')[0]
-                # chart title
-                st.write(TEXT_FIG.format(sym, dt_sym['long_name'], dt_sym['sec'], dt_sym['ind'], get_links(sym)))
                 # chart
-                date_str = df_proba['datetime'].astype('str').to_list()[0][:10]
-                live_data, target_profit, target_loss = (1, 0.011, -0.031)
-                df_c = get_df_c(sym, date_str, live_data, db, target_profit, target_loss)
-                df_c = pd.merge(df_c, df_proba[['sym','datetime','proba']], how='left', on=['sym', 'datetime'])
-                fig = get_fig(df_c)
-                st.pyplot(fig)
+                dt_sym = df_sym[df_sym['sym']==sym].reset_index().to_dict('index')[0]
+                st.write(TEXT_FIG.format(sym, dt_sym['long_name'], dt_sym['sec'], dt_sym['ind'], get_links(sym)))
+                generate_chart(df_proba, sym)
                 # description
                 exp_des = st.beta_expander('Description')
                 exp_des.write(dt_sym['summary'])
