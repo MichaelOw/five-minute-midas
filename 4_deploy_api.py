@@ -127,7 +127,8 @@ def update_stuff():
     target_profit = 0.011
     target_loss = -0.031
     df_sym = get_df_sym_filter(db)
-    for i, tup in df_sym.iloc[:].iterrows():
+    df_sym = df_sym.iloc[:50]
+    for i, tup in df_sym.iterrows():
         if i%100==0: print(i, df_sym.shape[0])
         sym = tup['sym']
         try:
