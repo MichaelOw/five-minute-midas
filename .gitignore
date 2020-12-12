@@ -11,3 +11,4 @@ z1_run_jupyter.bat
 z2_run_mlflow_ui.bat
 z3_run_api.bat
 z4_run_webapp.bat
+debug.log

@@ -54,7 +54,8 @@ def get_df_prices(sym, start_str, end_str):
     '''
     assert start_str <= end_str
     end_str_mod=add_days(end_str, 3)
-    df = yf.download(sym, start=start_str, end=end_str_mod, interval='1m', progress=0, prepost=True).reset_index()
+    with suppress_stdout():
+        df = yf.download(sym, start=start_str, end=end_str_mod, interval='1m', progress=0, prepost=True).reset_index()
     is_date_range = (df['Datetime'].dt.date.astype('str')>=start_str) & (df['Datetime'].dt.date.astype('str')<=end_str)
     df = df[is_date_range]
     #df['Datetime'] = df['Datetime'].dt.tz_convert(None) + pd.Timedelta(hours=-4) #remove timezone

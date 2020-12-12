@@ -1,5 +1,6 @@
 alembic==1.4.1
 altair==4.1.0
+APScheduler==3.6.3
 argon2-cffi==20.1.0
 astor==0.8.1
 async-generator==1.10
@@ -27,6 +28,7 @@ entrypoints==0.3
 Flask==1.1.2
 gitdb==4.0.5
 GitPython==3.1.11
+html5lib==1.1
 idna==2.10
 importlib-metadata==3.1.1
 ipykernel==5.4.2
