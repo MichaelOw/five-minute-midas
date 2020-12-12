@@ -6,8 +6,8 @@ import scipy.signal
 import pandas as pd
 import yfinance as yf
 from contextlib import contextmanager
-from src.utils.utils_date import add_days
-from src.utils.utils_date import prev_weekday
+from src.utils_date import add_days
+from src.utils_date import prev_weekday
 #from pandas_datareader.nasdaq_trader import get_nasdaq_symbols
 
 @contextmanager

@@ -5,23 +5,23 @@ import datetime
 import traceback
 import numpy as np
 import pandas as pd
-from src.db.db import DataBase
-from src.utils.utils_general import beeps
-from src.utils.utils_general import timer_dec
-from src.utils.utils_stocks import get_df_c
+from src.db import DataBase
+from src.utils_general import beeps
+from src.utils_general import timer_dec
+from src.utils_stocks import get_df_c
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask #request, redirect, url_for, flash, jsonify
+dir_db = json.load(open('dir.txt'))['dir_db']
+dir_models = json.load(open('dir.txt'))['dir_models']
 
-# parameters
+# user parameters
 refresh_mins = 400
 date_str = '2020-12-11'
 live_data = 1
-
-# global variables
-print('Loading...', end = '')
-dir_db = 'D:/Michael/five_minute_midas/data/db/'
-dir_models = 'D:/Michael/five_minute_midas/data/models/'
 f_model = 'tup_model_2020-12-06_1640.p'
+
+# load model
+print('Loading...', end = '')
 tup_model = pickle.load(open(dir_models+f_model, 'rb'))
 
 # api

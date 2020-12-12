@@ -1,24 +1,24 @@
 import pytz
 import json
+import logging
 import requests
 import datetime
 import warnings
-import pandas as pd
-import streamlit as st
-from streamlit import caching
-from src.db.db import DataBase
-from src.utils.utils_stocks import get_df_c
-from requests.exceptions import ConnectionError
-from src.utils.utils_general import get_yahoo_link
-from src.utils.utils_general import get_google_link
-from src.utils.utils_general import suppress_stdout
 import numpy as np
+import pandas as pd
 import seaborn as sns
+import streamlit as st
 import matplotlib.pyplot as plt
-import logging
+from streamlit import caching
+from requests.exceptions import ConnectionError
+from src.db import DataBase
+from src.utils_stocks import get_df_c
+from src.utils_general import get_yahoo_link
+from src.utils_general import get_google_link
+from src.utils_general import suppress_stdout
 logging.getLogger().setLevel(logging.CRITICAL)
-
-db = DataBase([], dir_db='D:/Michael/five_minute_midas/data/db/')
+dir_db = json.load(open('dir.txt'))['dir_db']
+db = DataBase([], dir_db=dir_db)
 
 TEXT_TITLE = '''# Five Minute Midas
 ### Predicting profitable day trading positions.
