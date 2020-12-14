@@ -70,6 +70,37 @@ def get_df_sym(ls_sym, db):
     df_sym = pd.read_sql(q, db.conn)
     return df_sym
 
+def get_fig_multi(ls_sym, df_proba, date_str):
+    if not ls_sym: return
+    live_data, target_profit, target_loss = (1, 0.011, -0.031)
+    n = (len(ls_sym)+(3-1))//3
+    fig, axs = plt.subplots(nrows=n, ncols=3, figsize=(3*4,n*4))
+    for i in range(n):
+        for j in range(3):
+            pos = (i, j)
+            if n==1:
+                pos = j
+            try:
+                sym = ls_sym[i*3+j]
+                df = get_df_c(sym, date_str, live_data, db, target_profit, target_loss)
+                df = pd.merge(df, df_proba[['sym','datetime','proba']], how='left', on=['sym', 'datetime'])
+                df['close_div'] = np.where(df['proba']>0, df['close'], np.nan)
+                df['close_div_profit'] = np.where((df['proba']>0)&(df['profit']>0), df['close'], np.nan)
+                df['close_div_loss'] = np.where((df['proba']>0)&(df['profit']<0), df['close'], np.nan)
+                sns.lineplot(data=df, x='datetime', y='close', ax=axs[pos])
+                sns.lineplot(data=df, x='datetime', y='vwap', color='r', ax=axs[pos])
+                sns.scatterplot(data=df, x='datetime', y='close_div', color='y', ax=axs[pos])
+                sns.scatterplot(data=df, x='datetime', y='close_div_loss', color='r', ax=axs[pos])
+                sns.scatterplot(data=df, x='datetime', y='close_div_profit', color='lime', ax=axs[pos])
+                axs[pos].set_title(sym, fontsize=20)
+            except:
+                fig.delaxes(axs[pos])
+            axs[pos].set(xticks=[])
+            axs[pos].set(xlabel=None)
+            axs[pos].set(yticks=[])
+            axs[pos].set(ylabel=None)
+    return fig
+
 def get_fig(df):
     '''Plot the peaks and valleys of [close] value against [datetime]
     Args:
@@ -117,8 +148,7 @@ def get_fig(df):
             tick.set_rotation(45)
     return fig
 
-def generate_chart(df_proba, sym):
-    date_str = df_proba['datetime'].astype('str').to_list()[0][:10]
+def generate_chart_single(df_proba, sym, date_str):
     live_data, target_profit, target_loss = (1, 0.011, -0.031)
     df_c = get_df_c(sym, date_str, live_data, db, target_profit, target_loss)
     df_c = pd.merge(df_c, df_proba[['sym','datetime','proba']], how='left', on=['sym', 'datetime'])
@@ -126,13 +156,13 @@ def generate_chart(df_proba, sym):
     st.pyplot(fig)
 
 try:
-    # main
     st.set_page_config(layout='wide')
+    st.set_option('deprecation.showPyplotGlobalUse', False)
     c1, c2, c3, c4, c5  = st.beta_columns((1,4,1,4,1))
     # sidebar - add/remove symbols
-    ls_sym_add = st.sidebar.text_input('Add symbols manually (e.g. BYND, IBM)').replace(' ','').upper().split(',')
-    ls_sym_rem = st.sidebar.text_input('Remove symbols manually (e.g. SPOT, BA)').replace(' ','').upper().split(',')
-    ls_sym_entry = st.sidebar.text_input('Enter entry positions (e.g. TSLA, 630.5 )').replace(' ','').upper().split(',')
+    ls_sym_add = st.sidebar.text_input('Add symbols (e.g. BYND, IBM)').replace(' ','').upper().split(',')
+    ls_sym_rem = st.sidebar.text_input('Remove symbols (e.g. SPOT, BA)').replace(' ','').upper().split(',')
+    ls_sym_entry = st.sidebar.text_input('Current positions (e.g. TSLA, 630.5 )').replace(' ','').upper().split(',')
     if ls_sym_add == ['']: ls_sym_add = []
     # sidebar - get sort params
     sort_params = st.sidebar.radio('Sort By', ['proba_last', 'datetime_last', 'sym'])
@@ -142,6 +172,7 @@ try:
         if st.button('Refresh'): caching.clear_cache() # refresh button
         # api call to get proba
         df_proba, df_proba_sm = get_df_proba()
+        date_str = df_proba['datetime'].astype('str').to_list()[0][:10]
         # filter params
         tup_proba_last = st.slider('Profit probability range', min_value=0.0, max_value=1.0, value=(0.7,1.0), step=0.05)
         ls_past_mins = [str(x+1) for x in range(9)] + [str(x+1) for x in range(10-1, 60, 10)] + ['All']
@@ -158,22 +189,27 @@ try:
         # df_proba_sm
         ls_col = ['sym', 'datetime_last', 'proba_last']
         # add, remove sym
-        ls_sym = list(set(ls_sym + ls_sym_add))
+        ls_sym = list(dict.fromkeys(ls_sym + ls_sym_add)) #add new sym and remove duplicates
         ls_sym = [x for x in ls_sym if x not in ls_sym_rem]
+        # chart multiple
+        show_summary = st.checkbox('Show summary', True)
+        if show_summary:
+            fig = get_fig_multi(ls_sym, df_proba, date_str)
+            st.pyplot(fig)
+    with c4:
         if ls_sym:
-            with c4:
-                # single symbol selection
-                df_sym = get_df_sym(ls_sym, db)
-                df_sym = pd.merge(df_sym, df_proba_sm, how='left', on='sym').sort_values(sort_params, ascending=ascending)
-                ls_sym_mod = (df_sym['sym'] + ' - ' + df_sym['ind'] + ' - ' + df_sym['proba_last'].astype('str').str[:4]).to_list()
-                sym = st.selectbox('Select one symbol', ls_sym_mod, index=0).split()[0]
-                # chart
-                dt_sym = df_sym[df_sym['sym']==sym].reset_index().to_dict('index')[0]
-                st.write(TEXT_FIG.format(sym, dt_sym['long_name'], dt_sym['sec'], dt_sym['ind'], get_links(sym)))
-                generate_chart(df_proba, sym)
-                # description
-                exp_des = st.beta_expander('Description')
-                exp_des.write(dt_sym['summary'])
+            # single symbol selection
+            df_sym = get_df_sym(ls_sym, db)
+            df_sym = pd.merge(df_sym, df_proba_sm, how='left', on='sym').sort_values(sort_params, ascending=ascending)
+            ls_sym_mod = (df_sym['sym'] + ' - ' + df_sym['ind'] + ' - ' + df_sym['proba_last'].astype('str').str[:4]).to_list()
+            sym = st.selectbox('Select one symbol', ls_sym_mod, index=0).split()[0]
+            # chart single
+            dt_sym = df_sym[df_sym['sym']==sym].reset_index().to_dict('index')[0]
+            st.write(TEXT_FIG.format(sym, dt_sym['long_name'], dt_sym['sec'], dt_sym['ind'], get_links(sym)))
+            generate_chart_single(df_proba, sym, date_str)
+            # description
+            exp_des = st.beta_expander('Description')
+            exp_des.write(dt_sym['summary'])
 except ConnectionError:
     st.exception(f'Connection error! Try again in a few seconds.')
 except Exception as e:

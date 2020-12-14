@@ -15,10 +15,12 @@ dir_db = json.load(open('dir.txt'))['dir_db']
 dir_models = json.load(open('dir.txt'))['dir_models']
 
 # user parameters
-refresh_mins = 400
-date_str = '2020-12-11'
+refresh_mins = 5
+#buffer_seconds = 10
+date_str = '2020-12-14'
 live_data = 1
 f_model = 'tup_model_2020-12-06_1640.p'
+sym_limit = None
 
 # load model
 print('Loading...', end = '')
@@ -122,12 +124,13 @@ def update_stuff():
     global j_df_proba
     global date_str
     global live_data
+    global sym_limit
     db = DataBase([], dir_db)
     ls_df_proba = []
     target_profit = 0.011
     target_loss = -0.031
     df_sym = get_df_sym_filter(db)
-    df_sym = df_sym.iloc[:50]
+    df_sym = df_sym.iloc[:sym_limit]
     for i, tup in df_sym.iterrows():
         if i%100==0: print(i, df_sym.shape[0])
         sym = tup['sym']
