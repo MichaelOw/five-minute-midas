@@ -3,6 +3,7 @@ import json
 import pickle
 import datetime
 import traceback
+import threading
 import numpy as np
 import pandas as pd
 from src.db import DataBase
@@ -15,8 +16,7 @@ dir_db = json.load(open('dir.txt'))['dir_db']
 dir_models = json.load(open('dir.txt'))['dir_models']
 
 # user parameters
-refresh_mins = 5
-#buffer_seconds = 10
+buffer_seconds = 10
 date_str = '2020-12-14'
 live_data = 1
 f_model = 'tup_model_2020-12-06_1640.p'
@@ -125,28 +125,29 @@ def update_stuff():
     global date_str
     global live_data
     global sym_limit
+    global buffer_seconds
     db = DataBase([], dir_db)
     ls_df_proba = []
     target_profit = 0.011
     target_loss = -0.031
     df_sym = get_df_sym_filter(db)
     df_sym = df_sym.iloc[:sym_limit]
-    for i, tup in df_sym.iterrows():
-        if i%100==0: print(i, df_sym.shape[0])
-        sym = tup['sym']
-        try:
-            df_c = get_df_c(sym, date_str, live_data, db, target_profit, target_loss)
-            df_proba = get_df_proba(df_c, tup_model)
-            if not df_proba.empty: df_proba.to_sql('proba', db.conn, if_exists='append', index=0)
-        except Exception as e:
-            print(sym, type(e).__name__, e.args) #traceback.print_exc()
+    while 1:
+        for i, tup in df_sym.iterrows():
+            if i%100==0: print(i, df_sym.shape[0])
+            sym = tup['sym']
+            try:
+                df_c = get_df_c(sym, date_str, live_data, db, target_profit, target_loss)
+                df_proba = get_df_proba(df_c, tup_model)
+                if not df_proba.empty: df_proba.to_sql('proba', db.conn, if_exists='append', index=0)
+            except Exception as e:
+                print(sym, type(e).__name__, e.args) #traceback.print_exc()
+        print(f'Update complete, waiting for {buffer_seconds} seconds till next update...')
+        time.sleep(buffer_seconds)
 
-# apscheduler
-sched = BackgroundScheduler(daemon=True)
-sched.add_job(update_stuff)
-sched.add_job(update_stuff, 'interval', minutes=refresh_mins)
-sched.start()
 if __name__ == '__main__':
     db = DataBase([], dir_db)
     db.execute('DELETE FROM proba')
+    x = threading.Thread(target=update_stuff, daemon=True)
+    x.start()
     app.run(debug=False, host='0.0.0.0')

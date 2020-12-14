@@ -192,7 +192,7 @@ try:
         ls_sym = list(dict.fromkeys(ls_sym + ls_sym_add)) #add new sym and remove duplicates
         ls_sym = [x for x in ls_sym if x not in ls_sym_rem]
         # chart multiple
-        show_summary = st.checkbox('Show summary', True)
+        show_summary = st.checkbox('Show multi chart summary', True)
         if show_summary:
             fig = get_fig_multi(ls_sym, df_proba, date_str)
             st.pyplot(fig)
