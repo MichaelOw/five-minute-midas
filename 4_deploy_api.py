@@ -10,10 +10,10 @@ from src.db import DataBase
 from src.utils_general import beeps
 from src.utils_general import timer_dec
 from src.utils_stocks import get_df_c
-from apscheduler.schedulers.background import BackgroundScheduler
-from flask import Flask #request, redirect, url_for, flash, jsonify
-dir_db = json.load(open('dir.txt'))['dir_db']
-dir_models = json.load(open('dir.txt'))['dir_models']
+from flask import Flask
+with open('dir.txt') as f:
+    dir_db = json.load(f)['dir_db']
+    dir_models = json.load(f)['dir_models']
 
 # user parameters
 buffer_seconds = 10
