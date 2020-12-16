@@ -1,3 +1,9 @@
+'''
+notes
+- api to get df_proba_sm
+- api to get latest df_c with profit proba (specify symbols+timing)
+'''
+
 import time
 import json
 import pickle
@@ -11,14 +17,13 @@ from src.utils_general import beeps
 from src.utils_general import timer_dec
 from src.utils_stocks import get_df_c
 from flask import Flask
-with open('dir.txt') as f:
-    dir_db = json.load(f)['dir_db']
-    dir_models = json.load(f)['dir_models']
+with open('dir.txt') as f: dir_db = json.load(f)['dir_db']
+with open('dir.txt') as f: dir_models = json.load(f)['dir_db']
 
 # user parameters
-buffer_seconds = 10
-date_str = '2020-12-14'
-live_data = 1
+buffer_seconds = 100000
+date_str = '2020-12-09'
+live_data = 0
 f_model = 'tup_model_2020-12-06_1640.p'
 sym_limit = None
 
@@ -44,6 +49,9 @@ def api_get_df_proba_sm():
     df_proba = pd.read_sql(q, db.conn)
     j_df_proba = df_proba.to_json(orient='split')
     return j_df_proba
+
+
+    return j_df_proba_sm
 
 def get_df_sym_filter(db):
     ls_sec = [       

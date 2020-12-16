@@ -17,8 +17,7 @@ from src.utils_general import get_yahoo_link
 from src.utils_general import get_google_link
 from src.utils_general import suppress_stdout
 logging.getLogger().setLevel(logging.CRITICAL)
-with open('dir.txt') as f:
-    dir_db = json.load(f)['dir_db']
+with open('dir.txt') as f: dir_db = json.load(f)['dir_db']
 db = DataBase([], dir_db=dir_db)
 
 TEXT_TITLE = '''# Five Minute Midas
