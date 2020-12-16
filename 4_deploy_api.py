@@ -1,6 +1,5 @@
 '''
 notes
-- api to get df_proba_sm
 - api to get latest df_c with profit proba (specify symbols+timing)
 '''
 
@@ -16,16 +15,16 @@ from src.db import DataBase
 from src.utils_general import beeps
 from src.utils_general import timer_dec
 from src.utils_stocks import get_df_c
-from flask import Flask
+from flask import Flask, request
 with open('dir.txt') as f: dir_db = json.load(f)['dir_db']
-with open('dir.txt') as f: dir_models = json.load(f)['dir_db']
+with open('dir.txt') as f: dir_models = json.load(f)['dir_models']
 
 # user parameters
 buffer_seconds = 100000
 date_str = '2020-12-09'
 live_data = 0
 f_model = 'tup_model_2020-12-06_1640.p'
-sym_limit = None
+sym_limit = 10#None
 
 # load model
 print('Loading...', end = '')
@@ -36,7 +35,8 @@ app = Flask(__name__)
 print('Done!')
 
 @app.route('/proba', methods=['POST'])
-def api_get_df_proba_sm():
+def api_get_df_proba():
+    global dir_db
     db = DataBase([], dir_db)
     q = '''
     SELECT *
@@ -50,8 +50,58 @@ def api_get_df_proba_sm():
     j_df_proba = df_proba.to_json(orient='split')
     return j_df_proba
 
-
+@app.route('/df_proba_sm', methods=['POST'])
+def api_get_df_proba_sm():
+    global dir_db
+    db = DataBase([], dir_db)
+    q = '''
+    SELECT *
+      FROM proba
+     WHERE sym + datetime_update IN
+           (SELECT sym + MAX(datetime_update)
+              FROM proba
+             GROUP BY sym)
+    '''
+    df = pd.read_sql(q, db.conn)
+    df1 = (df
+            .sort_values('proba',ascending=0)
+            .drop_duplicates(subset=['sym'], keep='first')
+            .rename(columns={'proba':'proba_max'}))
+    df1 = df1[['sym', 'proba_max', 'datetime_update']]
+    df2 = (df
+            .sort_values('datetime',ascending=0)
+            .drop_duplicates(subset=['sym'], keep='first')
+            .rename(columns={'datetime':'datetime_last', 'proba':'proba_last'}))
+    df2 = df2[['sym', 'datetime_last', 'proba_last']]
+    df_proba_sm = pd.merge(df1, df2, how='left', on='sym')
+    j_df_proba_sm = df_proba_sm.to_json(orient='split')
     return j_df_proba_sm
+
+@app.route('/df_c', methods=['POST'])
+def api_get_df_c():
+    global dir_db
+    global tup_model
+    global date_str
+    global live_data
+    db = DataBase([], dir_db)
+    j_data = request.get_json()
+    sym = json.loads(j_data)['sym']
+    time_str = json.loads(j_data)['time_str']
+    target_profit = 0.011
+    target_loss = -0.031
+    try:
+        df_c = get_df_c(sym, date_str, live_data, db, target_profit, target_loss)
+        df_c = df_c[df_c['datetime'].dt.strftime('%H%M')<time_str]
+        df_proba = get_df_proba(df_c, tup_model)
+        if not df_proba.empty:
+            df_c = pd.merge(df_c, df_proba[['sym','datetime','proba']], how='left', on=['sym', 'datetime'])
+        else:
+            df_c['proba'] = None
+        j_df_c = df_c.to_json(orient='split')
+        return j_df_c
+    except Exception as e:
+        print(sym, type(e).__name__, e.args) #traceback.print_exc()
+        return pd.DataFrame().to_json(orient='split')
 
 def get_df_sym_filter(db):
     ls_sec = [       
