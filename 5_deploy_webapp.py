@@ -32,29 +32,27 @@ TEXT_LINKS = '''[Google]({}), [Yahoo Finance]({})'''
 DATI_OLD = '19930417_0000'
 
 @st.cache()
-def get_df_proba():
+def get_df_proba_sm():
     # api call to get df_proba
-    url = 'http://localhost:5000/proba'
+    url = 'http://localhost:5000/df_proba_sm'
     headers = {'content-type': 'application/json', 'Accept-Charset': 'UTF-8'}
     r = requests.post(url, data='', headers=headers)
     data = json.loads(r.text)
     df = pd.DataFrame(**data)
-    for col in ['datetime', 'datetime_update']:
+    for col in ['datetime_last', 'datetime_update']:
         df[col] = pd.to_datetime(df[col]).dt.round('min')
-    df_proba = df.copy()
-    # create summary of df_proba
-    df1 = (df
-            .sort_values('proba',ascending=0)
-            .drop_duplicates(subset=['sym'], keep='first')
-            .rename(columns={'proba':'proba_max'}))
-    df1 = df1[['sym', 'proba_max', 'datetime_update']]
-    df2 = (df
-            .sort_values('datetime',ascending=0)
-            .drop_duplicates(subset=['sym'], keep='first')
-            .rename(columns={'datetime':'datetime_last', 'proba':'proba_last'}))
-    df2 = df2[['sym', 'datetime_last', 'proba_last']]
-    df_proba_sm = pd.merge(df1, df2, how='left', on='sym')
-    return df_proba, df_proba_sm
+    return df
+
+@st.cache()
+def get_df_c(sym):
+    dt_sym = {'sym':sym, 'time_str':'9999'}
+    url = 'http://localhost:5000/df_c'
+    headers = {'content-type': 'application/json', 'Accept-Charset': 'UTF-8'}
+    r = requests.post(url, json=json.dumps(dt_sym), headers=headers)
+    data = json.loads(r.text)
+    df = pd.DataFrame(**data)
+    df['datetime'] = pd.to_datetime(df['datetime'], unit='ms')
+    return df
 
 def get_links(sym):
     links = (TEXT_LINKS.format(get_google_link(sym), get_yahoo_link(sym)))
@@ -148,10 +146,8 @@ def get_fig(df):
             tick.set_rotation(45)
     return fig
 
-def generate_chart_single(df_proba, sym, date_str):
+def generate_chart_single(df_c, date_str):
     live_data, target_profit, target_loss = (1, 0.011, -0.031)
-    df_c = get_df_c(sym, date_str, live_data, db, target_profit, target_loss)
-    df_c = pd.merge(df_c, df_proba[['sym','datetime','proba']], how='left', on=['sym', 'datetime'])
     fig = get_fig(df_c)
     st.pyplot(fig)
 
@@ -171,8 +167,8 @@ try:
         st.write(TEXT_TITLE)
         if st.button('Refresh'): caching.clear_cache() # refresh button
         # api call to get proba
-        df_proba, df_proba_sm = get_df_proba()
-        date_str = df_proba['datetime'].astype('str').to_list()[0][:10]
+        df_proba_sm = get_df_proba_sm()
+        date_str = df_proba_sm['datetime_last'].astype('str').to_list()[0][:10]
         # filter params
         tup_proba_last = st.slider('Profit probability range', min_value=0.0, max_value=1.0, value=(0.7,1.0), step=0.05)
         ls_past_mins = [str(x+1) for x in range(9)] + [str(x+1) for x in range(10-1, 60, 10)] + ['All']
@@ -192,10 +188,10 @@ try:
         ls_sym = list(dict.fromkeys(ls_sym + ls_sym_add)) #add new sym and remove duplicates
         ls_sym = [x for x in ls_sym if x not in ls_sym_rem]
         # chart multiple
-        show_summary = st.checkbox('Show multi chart summary', True)
-        if show_summary:
-            fig = get_fig_multi(ls_sym, df_proba, date_str)
-            st.pyplot(fig)
+        # show_summary = st.checkbox('Show multi chart summary', True)
+        # if show_summary:
+            # fig = get_fig_multi(ls_sym, df_proba, date_str)
+            # st.pyplot(fig)
     with c4:
         if ls_sym:
             # single symbol selection
@@ -206,7 +202,8 @@ try:
             # chart single
             dt_sym = df_sym[df_sym['sym']==sym].reset_index().to_dict('index')[0]
             st.write(TEXT_FIG.format(sym, dt_sym['long_name'], dt_sym['sec'], dt_sym['ind'], get_links(sym)))
-            generate_chart_single(df_proba, sym, date_str)
+            df_c = get_df_c(sym)
+            generate_chart_single(df_c, date_str)
             # description
             exp_des = st.beta_expander('Description')
             exp_des.write(dt_sym['summary'])

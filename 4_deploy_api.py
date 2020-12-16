@@ -24,7 +24,7 @@ buffer_seconds = 100000
 date_str = '2020-12-09'
 live_data = 0
 f_model = 'tup_model_2020-12-06_1640.p'
-sym_limit = 10#None
+sym_limit = 100#None
 
 # load model
 print('Loading...', end = '')
