@@ -32,7 +32,7 @@ TEXT_FIG = '''## {} - {}
 TEXT_LINKS = '''[Google]({}), [Yahoo Finance]({})'''
 TEXT_BUTTON1 = 'Get latest predictions'
 TEXT_BUTTON2 = 'Show charts for {}'
-TEXT_BUTTON3 = 'Show charts for all'
+TEXT_BUTTON3 = 'Show charts for all symbols'
 TEXT_EXPANDER = 'Description'
 TEXT_SELECTBOX = 'Symbol - Industry - Latest Profit Probability'
 TEXT_SLIDER1 = 'Profit probability range'
@@ -161,6 +161,29 @@ def get_fig_multi(ls_sym, df_c):
             axs[pos].set(yticks=[])
             axs[pos].set(ylabel=None)
     return fig
+def get_curr_price(sym):
+    return 69.0
+
+def get_df_curr_profit(ls_sym_entry):
+    ls_sym = ls_sym_entry[0::2]
+    ls_entry = ls_sym_entry[1::2]
+    ls_target = []
+    ls_profit = []
+    for sym, entry in zip(ls_sym, ls_entry):
+        entry = float(entry)
+        current = get_curr_price(sym)
+        profit = current/entry-1
+        ls_target.append(str(round(entry*1.01,3)))
+        ls_profit.append(str(round(profit,3)))
+    dt_curr_profit = {
+        'sym':ls_sym,
+        'profit':ls_profit,
+        'target':ls_target
+        
+    }
+    df_curr_profit = pd.DataFrame(dt_curr_profit)
+    df_curr_profit = df_curr_profit.sort_values('profit', ascending=0)
+    return df_curr_profit
 
 try:
     st.set_page_config(layout='wide')
@@ -168,14 +191,18 @@ try:
     c1, c2, c3, c4, c5  = st.beta_columns((1,4,1,4,1))
     # sidebar - add/remove symbols
     ls_sym_add = st.sidebar.text_input(TEXT_SIDEBAR_INPUT1).replace(' ','').upper().split(',')
+    if ls_sym_add == ['']: ls_sym_add = []
     ls_sym_rem = st.sidebar.text_input(TEXT_SIDEBAR_INPUT2).replace(' ','').upper().split(',')
-    ls_sym_entry = st.sidebar.text_input(TEXT_SIDEBAR_INPUT3).replace(' ','').upper().split(',')
     time_str = st.sidebar.text_input(TEXT_SIDEBAR_INPUT4).replace(' ','')
     if not time_str: time_str = '9999'
-    if ls_sym_add == ['']: ls_sym_add = []
     # sidebar - get sort params
     sort_params = st.sidebar.radio(TEXT_SIDEBAR_RADIO, ['proba_last', 'datetime_last', 'sym'])
     ascending = 1 if sort_params == 'sym' else 0
+    # sidebar - currentprofit
+    ls_sym_entry = st.sidebar.text_input(TEXT_SIDEBAR_INPUT3).replace(' ','').upper().split(',')
+    if len(ls_sym_entry)%2==0:
+        df_curr_profit = get_df_curr_profit(ls_sym_entry)
+        st.sidebar.write(df_curr_profit)
     with c2:
         st.write(TEXT_TITLE)
         
