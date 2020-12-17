@@ -34,7 +34,7 @@ tup_model = pickle.load(open(dir_models+f_model, 'rb'))
 app = Flask(__name__)
 print('Done!')
 
-@app.route('/proba', methods=['POST'])
+@app.route('/df_proba', methods=['POST'])
 def api_get_df_proba():
     global dir_db
     db = DataBase([], dir_db)

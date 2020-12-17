@@ -3,10 +3,11 @@ import sqlite3
 logger = logging.getLogger('root')
 
 class DataBase:
-    def __init__(self, ls_db_init_str, dir_db =''):
+    def __init__(self, ls_db_init_str=[], dir_db =''):
         '''Initilizes DataBase object with attributes:
         Args:
-            ls_db_init_str (List): List of init strings
+            ls_db_init_str (List): List of init strings (Optional)
+            dir_db (str): Directory the database is in (Optional) e.g. 'D:\\Program Files\\simple_telegram_bot\\'
         '''
         logger.info('Loading db...')
         self.conn = sqlite3.connect(dir_db + 'db.db')
@@ -46,3 +47,7 @@ class DataBase:
         for row in c.fetchall():
             ls_rows.append(row)
         return ls_rows
+
+    def close_connection(self):
+        '''Closes connection'''
+        self.conn.close()
