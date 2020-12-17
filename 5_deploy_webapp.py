@@ -6,13 +6,13 @@ import datetime
 import warnings
 import numpy as np
 import pandas as pd
+import yfinance as yf
 import seaborn as sns
 import streamlit as st
 import matplotlib.pyplot as plt
 from streamlit import caching
 from requests.exceptions import ConnectionError
 from src.db import DataBase
-from src.utils_stocks import get_df_c
 from src.utils_general import get_yahoo_link
 from src.utils_general import get_google_link
 from src.utils_general import suppress_stdout
@@ -42,6 +42,8 @@ TEXT_SIDEBAR_INPUT2 = 'Remove symbols (e.g. SPOT, BA)'
 TEXT_SIDEBAR_INPUT3 = 'Current positions (e.g. TSLA, 630.5 )'
 TEXT_SIDEBAR_INPUT4 = 'Simulate Time Cutoff (e.g. 0945)'
 TEXT_SIDEBAR_RADIO = 'Sort By'
+TEXT_SIDEBAR_BUTTON = 'Show current profits'
+TEXT_SIDEBAR_ERROR = 'Empty or invalid input.'
 DATI_OLD = '19930417_0000'
 
 @st.cache()
@@ -161,8 +163,11 @@ def get_fig_multi(ls_sym, df_c):
             axs[pos].set(yticks=[])
             axs[pos].set(ylabel=None)
     return fig
+
 def get_curr_price(sym):
-    return 69.0
+    df = yf.download(sym, period='1d', interval="1m", progress=0).reset_index()
+    curr_price = df['Adj Close'].to_list()[-1]
+    return curr_price
 
 def get_df_curr_profit(ls_sym_entry):
     ls_sym = ls_sym_entry[0::2]
@@ -178,8 +183,7 @@ def get_df_curr_profit(ls_sym_entry):
     dt_curr_profit = {
         'sym':ls_sym,
         'profit':ls_profit,
-        'target':ls_target
-        
+        'target':ls_target,
     }
     df_curr_profit = pd.DataFrame(dt_curr_profit)
     df_curr_profit = df_curr_profit.sort_values('profit', ascending=0)
@@ -198,11 +202,14 @@ try:
     # sidebar - get sort params
     sort_params = st.sidebar.radio(TEXT_SIDEBAR_RADIO, ['proba_last', 'datetime_last', 'sym'])
     ascending = 1 if sort_params == 'sym' else 0
-    # sidebar - currentprofit
+    # sidebar - current profit
     ls_sym_entry = st.sidebar.text_input(TEXT_SIDEBAR_INPUT3).replace(' ','').upper().split(',')
-    if len(ls_sym_entry)%2==0:
-        df_curr_profit = get_df_curr_profit(ls_sym_entry)
-        st.sidebar.write(df_curr_profit)
+    if st.sidebar.button(TEXT_SIDEBAR_BUTTON):
+        if len(ls_sym_entry)%2==0:
+            df_curr_profit = get_df_curr_profit(ls_sym_entry)
+            st.sidebar.write(df_curr_profit)
+        else:
+            st.sidebar.write(TEXT_SIDEBAR_ERROR)
     with c2:
         st.write(TEXT_TITLE)
         
