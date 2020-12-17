@@ -85,18 +85,22 @@ def api_get_df_c():
     global live_data
     db = DataBase([], dir_db)
     j_data = request.get_json()
-    sym = json.loads(j_data)['sym']
+    ls_sym = json.loads(j_data)['ls_sym']
     time_str = json.loads(j_data)['time_str']
     target_profit = 0.011
     target_loss = -0.031
     try:
-        df_c = get_df_c(sym, date_str, live_data, db, target_profit, target_loss)
-        df_c = df_c[df_c['datetime'].dt.strftime('%H%M')<time_str]
-        df_proba = get_df_proba(df_c, tup_model)
-        if not df_proba.empty:
-            df_c = pd.merge(df_c, df_proba[['sym','datetime','proba']], how='left', on=['sym', 'datetime'])
-        else:
-            df_c['proba'] = None
+        ls_df = []
+        for sym in ls_sym:
+            df = get_df_c(sym, date_str, live_data, db, target_profit, target_loss)
+            df = df[df['datetime'].dt.strftime('%H%M')<time_str]
+            df_proba = get_df_proba(df, tup_model)
+            if not df_proba.empty:
+                df = pd.merge(df, df_proba[['sym','datetime','proba']], how='left', on=['sym', 'datetime'])
+            else:
+                df['proba'] = None
+            ls_df.append(df)
+        df_c = pd.concat(ls_df)
         j_df_c = df_c.to_json(orient='split')
         return j_df_c
     except Exception as e:

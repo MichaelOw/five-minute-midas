@@ -57,8 +57,8 @@ def get_df_proba_sm():
     return df
 
 @st.cache()
-def get_df_c(sym, time_str):
-    dt_sym = {'sym':sym, 'time_str':time_str}
+def get_df_c(ls_sym, time_str):
+    dt_sym = {'ls_sym':ls_sym, 'time_str':time_str}
     url = 'http://localhost:5000/df_c'
     headers = {'content-type': 'application/json', 'Accept-Charset': 'UTF-8'}
     r = requests.post(url, json=json.dumps(dt_sym), headers=headers)
@@ -80,40 +80,6 @@ def get_df_sym(ls_sym, db):
     '''.format(tuple(ls_sym))
     df_sym = pd.read_sql(q, db.conn)
     return df_sym
-
-def get_fig_multi(ls_sym, df_c):
-    '''Returns pyplot figure for list of symbols and input dataframe
-    Args:
-        ls_sym (list of str)
-        df_c (pandas.Dataframe): datetime, close, sma180, rsi14, vwap, peak_valley, divergence, proba
-    '''
-    if not ls_sym: return
-    n = (len(ls_sym)+(3-1))//3
-    fig, axs = plt.subplots(nrows=n, ncols=3, figsize=(3*4,n*4))
-    for i in range(n):
-        for j in range(3):
-            pos = (i, j)
-            if n==1:
-                pos = j
-            try:
-                sym = ls_sym[i*3+j]
-                df = df_c[df_c['sym']==sym]
-                df['close_div'] = np.where(df['proba']>0, df['close'], np.nan)
-                df['close_div_profit'] = np.where((df['proba']>0)&(df['profit']>0), df['close'], np.nan)
-                df['close_div_loss'] = np.where((df['proba']>0)&(df['profit']<0), df['close'], np.nan)
-                sns.lineplot(data=df, x='datetime', y='close', ax=axs[pos])
-                sns.lineplot(data=df, x='datetime', y='vwap', color='r', ax=axs[pos])
-                sns.scatterplot(data=df, x='datetime', y='close_div', color='y', ax=axs[pos])
-                sns.scatterplot(data=df, x='datetime', y='close_div_loss', color='r', ax=axs[pos])
-                sns.scatterplot(data=df, x='datetime', y='close_div_profit', color='lime', ax=axs[pos])
-                axs[pos].set_title(sym, fontsize=20)
-            except:
-                fig.delaxes(axs[pos])
-            axs[pos].set(xticks=[])
-            axs[pos].set(xlabel=None)
-            axs[pos].set(yticks=[])
-            axs[pos].set(ylabel=None)
-    return fig
 
 def get_fig(df_c):
     '''Returns pyplot figure for input dataframe
@@ -162,6 +128,40 @@ def get_fig(df_c):
             tick.set_rotation(45)
     return fig
 
+def get_fig_multi(ls_sym, df_c):
+    '''Returns pyplot figure for list of symbols and input dataframe
+    Args:
+        ls_sym (list of str)
+        df_c (pandas.Dataframe): datetime, close, sma180, rsi14, vwap, peak_valley, divergence, proba
+    '''
+    if not ls_sym: return
+    n = (len(ls_sym)+(3-1))//3
+    fig, axs = plt.subplots(nrows=n, ncols=3, figsize=(3*4,n*4))
+    for i in range(n):
+        for j in range(3):
+            pos = (i, j)
+            if n==1:
+                pos = j
+            try:
+                sym = ls_sym[i*3+j]
+                df = df_c[df_c['sym']==sym].copy()
+                df['close_div'] = np.where(df['proba']>0, df['close'], np.nan)
+                df['close_div_profit'] = np.where((df['proba']>0)&(df['profit']>0), df['close'], np.nan)
+                df['close_div_loss'] = np.where((df['proba']>0)&(df['profit']<0), df['close'], np.nan)
+                sns.lineplot(data=df, x='datetime', y='close', ax=axs[pos])
+                sns.lineplot(data=df, x='datetime', y='vwap', color='r', ax=axs[pos])
+                sns.scatterplot(data=df, x='datetime', y='close_div', color='y', ax=axs[pos])
+                sns.scatterplot(data=df, x='datetime', y='close_div_loss', color='r', ax=axs[pos])
+                sns.scatterplot(data=df, x='datetime', y='close_div_profit', color='lime', ax=axs[pos])
+                axs[pos].set_title(sym, fontsize=20)
+            except:
+                fig.delaxes(axs[pos])
+            axs[pos].set(xticks=[])
+            axs[pos].set(xlabel=None)
+            axs[pos].set(yticks=[])
+            axs[pos].set(ylabel=None)
+    return fig
+
 try:
     st.set_page_config(layout='wide')
     st.set_option('deprecation.showPyplotGlobalUse', False)
@@ -202,11 +202,6 @@ try:
         ls_sym = list(dict.fromkeys(ls_sym + ls_sym_add)) #add new sym and remove duplicates
         ls_sym = [x for x in ls_sym if x not in ls_sym_rem]
         st.write(TEXT_SYMBOLS_FOUND.format(len(ls_sym)))
-        # chart multiple
-        # show_summary = st.checkbox('Show multi chart summary', True)
-        # if show_summary:
-            # fig = get_fig_multi(ls_sym, df_proba, date_str)
-            # st.pyplot(fig)
     if ls_sym:
         with c2:
             # single symbol selection
@@ -221,7 +216,7 @@ try:
                 # chart single
                 dt_sym = df_sym[df_sym['sym']==sym].reset_index().to_dict('index')[0]
                 st.write(TEXT_FIG.format(sym, dt_sym['long_name'], dt_sym['sec'], dt_sym['ind'], get_links(sym)), unsafe_allow_html=1)
-                df_c = get_df_c(sym, time_str)
+                df_c = get_df_c([sym], time_str)
                 fig = get_fig(df_c)
                 st.pyplot(fig)
                 # description
@@ -229,8 +224,8 @@ try:
                 exp_des.write(dt_sym['summary'])
             elif show_multi:
                 # chart multi
-                df_c = get_df_c(sym, time_str)
-                fig = get_fig_multi([sym], df_c)
+                df_c = get_df_c(ls_sym, time_str)
+                fig = get_fig_multi(ls_sym, df_c)
                 st.pyplot(fig)
 except ConnectionError:
     st.exception(f'Connection error! Try again in a few seconds.')
