@@ -24,11 +24,24 @@ TEXT_TITLE = '''# Five Minute Midas
 ### Predicting profitable day trading positions.
 ---
 '''
+TEXT_SYMBOLS_FOUND = '### **{}** symbols found.\n---'
 TEXT_FIG = '''## {} - {}
 #### {} - {}
 {}
 '''
 TEXT_LINKS = '''[Google]({}), [Yahoo Finance]({})'''
+TEXT_BUTTON1 = 'Get latest predictions'
+TEXT_BUTTON2 = 'Show charts for {}'
+TEXT_BUTTON3 = 'Show charts for all'
+TEXT_EXPANDER = 'Description'
+TEXT_SELECTBOX = 'Symbol - Industry - Latest Profit Probability'
+TEXT_SLIDER1 = 'Profit probability range'
+TEXT_SLIDER2 = 'Past minutes to show'
+TEXT_SIDEBAR_INPUT1 = 'Add symbols (e.g. BYND, IBM)'
+TEXT_SIDEBAR_INPUT2 = 'Remove symbols (e.g. SPOT, BA)'
+TEXT_SIDEBAR_INPUT3 = 'Current positions (e.g. TSLA, 630.5 )'
+TEXT_SIDEBAR_INPUT4 = 'Simulate Time Cutoff (e.g. 0945)'
+TEXT_SIDEBAR_RADIO = 'Sort By'
 DATI_OLD = '19930417_0000'
 
 @st.cache()
@@ -44,8 +57,8 @@ def get_df_proba_sm():
     return df
 
 @st.cache()
-def get_df_c(sym):
-    dt_sym = {'sym':sym, 'time_str':'9999'}
+def get_df_c(sym, time_str):
+    dt_sym = {'sym':sym, 'time_str':time_str}
     url = 'http://localhost:5000/df_c'
     headers = {'content-type': 'application/json', 'Accept-Charset': 'UTF-8'}
     r = requests.post(url, json=json.dumps(dt_sym), headers=headers)
@@ -68,9 +81,13 @@ def get_df_sym(ls_sym, db):
     df_sym = pd.read_sql(q, db.conn)
     return df_sym
 
-def get_fig_multi(ls_sym, df_proba, date_str):
+def get_fig_multi(ls_sym, df_c):
+    '''Returns pyplot figure for list of symbols and input dataframe
+    Args:
+        ls_sym (list of str)
+        df_c (pandas.Dataframe): datetime, close, sma180, rsi14, vwap, peak_valley, divergence, proba
+    '''
     if not ls_sym: return
-    live_data, target_profit, target_loss = (1, 0.011, -0.031)
     n = (len(ls_sym)+(3-1))//3
     fig, axs = plt.subplots(nrows=n, ncols=3, figsize=(3*4,n*4))
     for i in range(n):
@@ -80,8 +97,7 @@ def get_fig_multi(ls_sym, df_proba, date_str):
                 pos = j
             try:
                 sym = ls_sym[i*3+j]
-                df = get_df_c(sym, date_str, live_data, db, target_profit, target_loss)
-                df = pd.merge(df, df_proba[['sym','datetime','proba']], how='left', on=['sym', 'datetime'])
+                df = df_c[df_c['sym']==sym]
                 df['close_div'] = np.where(df['proba']>0, df['close'], np.nan)
                 df['close_div_profit'] = np.where((df['proba']>0)&(df['profit']>0), df['close'], np.nan)
                 df['close_div_loss'] = np.where((df['proba']>0)&(df['profit']<0), df['close'], np.nan)
@@ -99,12 +115,12 @@ def get_fig_multi(ls_sym, df_proba, date_str):
             axs[pos].set(ylabel=None)
     return fig
 
-def get_fig(df):
-    '''Plot the peaks and valleys of [close] value against [datetime]
+def get_fig(df_c):
+    '''Returns pyplot figure for input dataframe
     Args:
-        df (pandas.Dataframe): datetime, close, sma180, rsi14, vwap, peak_valley, divergence, proba
-        title (str): Chart title
+        df_c (pandas.Dataframe): datetime, close, sma180, rsi14, vwap, peak_valley, divergence, proba
     '''
+    df = df_c.copy()
     # new columns
     if 'proba' not in df.columns: df['proba'] = -1
     df['proba'] = df['proba'].fillna(0)
@@ -146,33 +162,31 @@ def get_fig(df):
             tick.set_rotation(45)
     return fig
 
-def generate_chart_single(df_c, date_str):
-    live_data, target_profit, target_loss = (1, 0.011, -0.031)
-    fig = get_fig(df_c)
-    st.pyplot(fig)
-
 try:
     st.set_page_config(layout='wide')
     st.set_option('deprecation.showPyplotGlobalUse', False)
     c1, c2, c3, c4, c5  = st.beta_columns((1,4,1,4,1))
     # sidebar - add/remove symbols
-    ls_sym_add = st.sidebar.text_input('Add symbols (e.g. BYND, IBM)').replace(' ','').upper().split(',')
-    ls_sym_rem = st.sidebar.text_input('Remove symbols (e.g. SPOT, BA)').replace(' ','').upper().split(',')
-    ls_sym_entry = st.sidebar.text_input('Current positions (e.g. TSLA, 630.5 )').replace(' ','').upper().split(',')
+    ls_sym_add = st.sidebar.text_input(TEXT_SIDEBAR_INPUT1).replace(' ','').upper().split(',')
+    ls_sym_rem = st.sidebar.text_input(TEXT_SIDEBAR_INPUT2).replace(' ','').upper().split(',')
+    ls_sym_entry = st.sidebar.text_input(TEXT_SIDEBAR_INPUT3).replace(' ','').upper().split(',')
+    time_str = st.sidebar.text_input(TEXT_SIDEBAR_INPUT4).replace(' ','')
+    if not time_str: time_str = '9999'
     if ls_sym_add == ['']: ls_sym_add = []
     # sidebar - get sort params
-    sort_params = st.sidebar.radio('Sort By', ['proba_last', 'datetime_last', 'sym'])
+    sort_params = st.sidebar.radio(TEXT_SIDEBAR_RADIO, ['proba_last', 'datetime_last', 'sym'])
     ascending = 1 if sort_params == 'sym' else 0
     with c2:
         st.write(TEXT_TITLE)
-        if st.button('Refresh'): caching.clear_cache() # refresh button
+        
+        if st.button(TEXT_BUTTON1): caching.clear_cache() # refresh button
         # api call to get proba
         df_proba_sm = get_df_proba_sm()
         date_str = df_proba_sm['datetime_last'].astype('str').to_list()[0][:10]
         # filter params
-        tup_proba_last = st.slider('Profit probability range', min_value=0.0, max_value=1.0, value=(0.7,1.0), step=0.05)
+        tup_proba_last = st.slider(TEXT_SLIDER1, min_value=0.0, max_value=1.0, value=(0.7,1.0), step=0.05)
         ls_past_mins = [str(x+1) for x in range(9)] + [str(x+1) for x in range(10-1, 60, 10)] + ['All']
-        past_mins = st.select_slider('Past minutes to show', ls_past_mins, 'All')
+        past_mins = st.select_slider(TEXT_SLIDER2, ls_past_mins, 'All')
         if past_mins == 'All':
             dati_target_str = DATI_OLD
         else:
@@ -187,26 +201,37 @@ try:
         # add, remove sym
         ls_sym = list(dict.fromkeys(ls_sym + ls_sym_add)) #add new sym and remove duplicates
         ls_sym = [x for x in ls_sym if x not in ls_sym_rem]
+        st.write(TEXT_SYMBOLS_FOUND.format(len(ls_sym)))
         # chart multiple
         # show_summary = st.checkbox('Show multi chart summary', True)
         # if show_summary:
             # fig = get_fig_multi(ls_sym, df_proba, date_str)
             # st.pyplot(fig)
-    with c4:
-        if ls_sym:
+    if ls_sym:
+        with c2:
             # single symbol selection
             df_sym = get_df_sym(ls_sym, db)
             df_sym = pd.merge(df_sym, df_proba_sm, how='left', on='sym').sort_values(sort_params, ascending=ascending)
             ls_sym_mod = (df_sym['sym'] + ' - ' + df_sym['ind'] + ' - ' + df_sym['proba_last'].astype('str').str[:4]).to_list()
-            sym = st.selectbox('Select one symbol', ls_sym_mod, index=0).split()[0]
-            # chart single
-            dt_sym = df_sym[df_sym['sym']==sym].reset_index().to_dict('index')[0]
-            st.write(TEXT_FIG.format(sym, dt_sym['long_name'], dt_sym['sec'], dt_sym['ind'], get_links(sym)))
-            df_c = get_df_c(sym)
-            generate_chart_single(df_c, date_str)
-            # description
-            exp_des = st.beta_expander('Description')
-            exp_des.write(dt_sym['summary'])
+            sym = st.selectbox(TEXT_SELECTBOX, ls_sym_mod, index=0).split()[0]
+            show_single = 1 if st.button(TEXT_BUTTON2.format(sym)) else 0
+            show_multi = 1 if st.button(TEXT_BUTTON3) else 0
+        with c4:
+            if show_single:
+                # chart single
+                dt_sym = df_sym[df_sym['sym']==sym].reset_index().to_dict('index')[0]
+                st.write(TEXT_FIG.format(sym, dt_sym['long_name'], dt_sym['sec'], dt_sym['ind'], get_links(sym)), unsafe_allow_html=1)
+                df_c = get_df_c(sym, time_str)
+                fig = get_fig(df_c)
+                st.pyplot(fig)
+                # description
+                exp_des = st.beta_expander(TEXT_EXPANDER)
+                exp_des.write(dt_sym['summary'])
+            elif show_multi:
+                # chart multi
+                df_c = get_df_c(sym, time_str)
+                fig = get_fig_multi([sym], df_c)
+                st.pyplot(fig)
 except ConnectionError:
     st.exception(f'Connection error! Try again in a few seconds.')
 except Exception as e:
