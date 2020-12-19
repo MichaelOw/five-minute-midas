@@ -16,6 +16,7 @@ from src.db import DataBase
 from src.utils_general import get_yahoo_link
 from src.utils_general import get_google_link
 from src.utils_general import suppress_stdout
+from src.utils_stocks import get_curr_price
 logging.getLogger().setLevel(logging.CRITICAL)
 with open('dir.txt') as f: dir_db = json.load(f)['dir_db']
 db = DataBase([], dir_db=dir_db)
@@ -24,19 +25,33 @@ TEXT_TITLE = '''# Five Minute Midas
 ### Predicting profitable day trading positions.
 ---
 '''
-TEXT_SYMBOLS_FOUND = '### **{}** symbols found.\n---'
-TEXT_FIG = '''## {} - {}
+TEXT_SYMBOLS_FOUND = '### **{}** symbols found for **{}**.\n---'
+TEXT_FIG = '''## {} - {}  ({})
 #### {} - {}
 {}
 '''
-TEXT_LINKS = '''[Google]({}), [Yahoo Finance]({})'''
-TEXT_BUTTON1 = 'Get latest predictions'
-TEXT_BUTTON2 = 'Show charts for {}'
-TEXT_BUTTON3 = 'Show charts for all symbols'
-TEXT_EXPANDER = 'Description'
+TEXT_LINKS = '''[G-News]({}), [Y-Finance]({})'''
+TEXT_BUTTON1 = 'Refresh Cache'
+TEXT_BUTTON2 = 'Show Charts - {}'
+TEXT_BUTTON3 = 'Show Charts - All Symbols'
+TEXT_EXPLAIN = 'Explain'
+TEXT_STR_EXPLAIN_1 = 'Latest price: ${}'
+TEXT_STR_EXPLAIN_2 = '- At {}, there was {}% chance of profit. Actual profit: {}%'
+TEXT_STR_EXPLAIN_3 = '''---
+Price Chart
+- Red Line - Volume Weighted Average Price (VWAP)
+- Yellow Point - Bullish RSI Div, current profit *zero*
+- Red Point - Bullish RSI Div, current profit *negative*
+- Green Point - Bullish RSI Div, current profit *positive*
+---
+RSI Chart (14 Periods)
+- Orange Line - *Overbought* Indicator
+- Green Line - *Oversold* Indicator
+'''
+TEXT_DESCRIPTION = 'Description'
 TEXT_SELECTBOX = 'Symbol - Industry - Latest Profit Probability'
-TEXT_SLIDER1 = 'Profit probability range'
-TEXT_SLIDER2 = 'Past minutes to show'
+TEXT_SLIDER1 = 'Profit Probability Range (%)'
+TEXT_SLIDER2 = 'Historical Prediction Range (Minutes)'
 TEXT_SIDEBAR_INPUT1 = 'Add symbols (e.g. BYND, IBM)'
 TEXT_SIDEBAR_INPUT2 = 'Remove symbols (e.g. SPOT, BA)'
 TEXT_SIDEBAR_INPUT3 = 'Current positions (e.g. TSLA, 630.5 )'
@@ -84,9 +99,11 @@ def get_df_sym(ls_sym, db):
     return df_sym
 
 def get_fig(df_c):
-    '''Returns pyplot figure for input dataframe
+    '''Returns price chart and rsi chart for input dataframe
     Args:
         df_c (pandas.Dataframe): datetime, close, sma180, rsi14, vwap, peak_valley, divergence, proba
+    Returns:
+        fig (pyplot.figure)
     '''
     df = df_c.copy()
     # new columns
@@ -102,7 +119,7 @@ def get_fig(df_c):
     # top plot - price line plot
     sns.lineplot(data=df, x='period', y='close', ax=axs[0])
     sns.lineplot(data=df, x='period', y='vwap', color='r', ax=axs[0])
-    sns.scatterplot(data=df, x='period', y='close_div', color='y', ax=axs[0])
+    sns.scatterplot(data=df, x='period', y='close_div', color='gold', ax=axs[0])
     sns.scatterplot(data=df, x='period', y='close_div_loss', color='r', ax=axs[0])
     sns.scatterplot(data=df, x='period', y='close_div_profit', color='lime', ax=axs[0])
     # top plot - profit proba labels
@@ -115,13 +132,11 @@ def get_fig(df_c):
         if proba:
             axs[0].text(x, y, f'{round(proba, 2)}\n({round(profit, 2)})', fontsize=9)
         if i == df.shape[0]-1:
-            axs[0].text(x, close, str(round(close, 2)), fontsize=9)
-    # text label at end of line
-    
+            axs[0].text(x, close, str(round(close, 2)), fontsize=9) # prices at end of line
     # bottom plot - rsi14 line plot
     sns.lineplot(data=df, x='period', y='rsi14', color='k', ax=axs[1])
-    axs[1].axhline(y=30, color='r')
-    axs[1].axhline(y=70, color='g')
+    axs[1].axhline(y=30, color='g')
+    axs[1].axhline(y=70, color='darkorange')
     # set ticks
     for ax in axs:
         ax.label_outer()
@@ -164,12 +179,13 @@ def get_fig_multi(ls_sym, df_c):
             axs[pos].set(ylabel=None)
     return fig
 
-def get_curr_price(sym):
-    df = yf.download(sym, period='1d', interval="1m", progress=0).reset_index()
-    curr_price = df['Adj Close'].to_list()[-1]
-    return curr_price
-
 def get_df_curr_profit(ls_sym_entry):
+    '''Returns dataframe detailing actual profits and price targets for multiple symbols
+    Args:
+        ls_sym_entry (list of str)
+    Returns:
+        df_curr_profit (pandas.DataFrame)
+    '''
     ls_sym = ls_sym_entry[0::2]
     ls_entry = ls_sym_entry[1::2]
     ls_target = []
@@ -182,13 +198,33 @@ def get_df_curr_profit(ls_sym_entry):
         ls_profit.append(str(round(profit,3)))
     dt_curr_profit = {
         'sym':ls_sym,
-        'profit':ls_profit,
         'target':ls_target,
+        'profit':ls_profit,
     }
     df_curr_profit = pd.DataFrame(dt_curr_profit)
     df_curr_profit = df_curr_profit.sort_values('profit', ascending=0)
     return df_curr_profit
 
+def get_str_explain(df_c):
+    '''Returns multi-line string that explains the features in chart
+    Args:
+        df_c (pandas.DataFrame)
+    Returns:
+        str_explain (str)
+    '''
+    ls_time = df_c[df_c['proba'].notnull()]['datetime'].dt.time.astype('str').str[:5].to_list()
+    ls_proba = (df_c[df_c['proba'].notnull()]['proba']*100).astype('str').str[:4].to_list()
+    ls_profit = (df_c[df_c['proba'].notnull()]['profit']*100).astype('str').str[:4].to_list()
+    ls_str_explain = []
+    latest_price = round(df_c['close'].to_list()[-1], 2)
+    str_latest_price = TEXT_STR_EXPLAIN_1.format(latest_price)
+    ls_str_explain.append(str_latest_price)
+    for proba, time, profit in zip(ls_proba, ls_time, ls_profit):
+        ls_str_explain.append(TEXT_STR_EXPLAIN_2.format(time, proba, profit))
+    ls_str_explain.append(TEXT_STR_EXPLAIN_3)
+    return '\n'.join(ls_str_explain)
+
+# UI Generation
 try:
     st.set_page_config(layout='wide')
     st.set_option('deprecation.showPyplotGlobalUse', False)
@@ -212,13 +248,13 @@ try:
             st.sidebar.write(TEXT_SIDEBAR_ERROR)
     with c2:
         st.write(TEXT_TITLE)
-        
         if st.button(TEXT_BUTTON1): caching.clear_cache() # refresh button
         # api call to get proba
         df_proba_sm = get_df_proba_sm()
         date_str = df_proba_sm['datetime_last'].astype('str').to_list()[0][:10]
         # filter params
-        tup_proba_last = st.slider(TEXT_SLIDER1, min_value=0.0, max_value=1.0, value=(0.7,1.0), step=0.05)
+        tup_proba_last = st.slider(TEXT_SLIDER1, min_value=0, max_value=100, value=(70,100), step=5, format='%d %%')
+        tup_proba_last = tuple(x/100 for x in tup_proba_last)
         ls_past_mins = [str(x+1) for x in range(9)] + [str(x+1) for x in range(10-1, 60, 10)] + ['All']
         past_mins = st.select_slider(TEXT_SLIDER2, ls_past_mins, 'All')
         if past_mins == 'All':
@@ -235,33 +271,44 @@ try:
         # add, remove sym
         ls_sym = list(dict.fromkeys(ls_sym + ls_sym_add)) #add new sym and remove duplicates
         ls_sym = [x for x in ls_sym if x not in ls_sym_rem]
-        st.write(TEXT_SYMBOLS_FOUND.format(len(ls_sym)))
+        st.write(TEXT_SYMBOLS_FOUND.format(len(ls_sym), date_str))
     if ls_sym:
         with c2:
             # single symbol selection
             df_sym = get_df_sym(ls_sym, db)
             df_sym = pd.merge(df_sym, df_proba_sm, how='left', on='sym').sort_values(sort_params, ascending=ascending)
-            ls_sym_mod = (df_sym['sym'] + ' - ' + df_sym['ind'] + ' - ' + df_sym['proba_last'].astype('str').str[:4]).to_list()
+            ls_sym_mod = (df_sym['sym'] + ' - ' + df_sym['ind'] + ' - ' + (df_sym['proba_last']*100).astype('str').str[:4] + '%').to_list()
             sym = st.selectbox(TEXT_SELECTBOX, ls_sym_mod, index=0).split()[0]
             show_single = 1 if st.button(TEXT_BUTTON2.format(sym)) else 0
             show_multi = 1 if st.button(TEXT_BUTTON3) else 0
         with c4:
-            if show_single:
+            if 1: #show_single:
                 # chart single
                 dt_sym = df_sym[df_sym['sym']==sym].reset_index().to_dict('index')[0]
-                st.write(TEXT_FIG.format(sym, dt_sym['long_name'], dt_sym['sec'], dt_sym['ind'], get_links(sym)), unsafe_allow_html=1)
+                st.write(TEXT_FIG.format(
+                    sym,
+                    dt_sym['long_name'],
+                    date_str,
+                    dt_sym['sec'],
+                    dt_sym['ind'],
+                    get_links(sym)
+                    ), unsafe_allow_html=1)
                 df_c = get_df_c([sym], time_str)
                 fig = get_fig(df_c)
                 st.pyplot(fig)
                 # description
-                exp_des = st.beta_expander(TEXT_EXPANDER)
+                exp_des = st.beta_expander(TEXT_DESCRIPTION)
                 exp_des.write(dt_sym['summary'])
+                # explain
+                str_explain = get_str_explain(df_c)
+                exp_explain = st.beta_expander(TEXT_EXPLAIN)
+                exp_explain.write(str_explain)
             elif show_multi:
                 # chart multi
                 df_c = get_df_c(ls_sym, time_str)
                 fig = get_fig_multi(ls_sym, df_c)
                 st.pyplot(fig)
 except ConnectionError:
-    st.exception(f'Connection error! Try again in a few seconds.')
+    st.write(f'Connection error! Try again in a few seconds.')
 except Exception as e:
-    st.exception(f'{type(e).__name__} - {e}')
+    st.write(f'{type(e).__name__} - {e}')

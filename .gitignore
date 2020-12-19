@@ -5,7 +5,7 @@ documentation
 mlflow
 src/__pycache__
 venv
-5_test_api.ipynb
+6_test_api.ipynb
 dir.txt
 z1_run_jupyter.bat
 z2_run_mlflow_ui.bat

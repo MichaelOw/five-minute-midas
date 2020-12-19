@@ -356,6 +356,17 @@ def get_df_c(sym, date_str, live_data, db, target_profit, target_loss):
     df_c = add_is_profit(df_c, target_profit, target_loss)
     return df_c
 
+def get_curr_price(sym):
+    '''Returns current price for input symbol
+    Args:
+        sym (str)
+    Returns:
+        curr_price (float)
+    '''
+    df = yf.download(sym, period='1d', interval="1m", progress=0).reset_index()
+    curr_price = df['Adj Close'].to_list()[-1]
+    return curr_price
+
 ############
 # obsolete #
 ############
