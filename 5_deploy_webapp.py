@@ -25,8 +25,8 @@ TEXT_TITLE = '''# Five Minute Midas
 ### Predicting profitable day trading positions.
 ---
 '''
-TEXT_SYMBOLS_FOUND = '### **{}** symbols found for **{}**.\n---'
-TEXT_FIG = '''## {} - {}  ({})
+TEXT_SYMBOLS_FOUND = '### ***{}*** symbols found for ***{}***'
+TEXT_FIG = '''## {} - {}
 #### {} - {}
 {}
 '''
@@ -37,21 +37,20 @@ TEXT_BUTTON3 = 'Show Charts - All Symbols'
 TEXT_EXPLAIN = 'Explain'
 TEXT_STR_EXPLAIN_1 = 'Latest price: ${}'
 TEXT_STR_EXPLAIN_2 = '- At {}, there was {}% chance of profit. Actual profit: {}%'
-TEXT_STR_EXPLAIN_3 = '''---
-Price Chart
+TEXT_STR_EXPLAIN_3 = '''Price Chart
 - Red Line - Volume Weighted Average Price (VWAP)
-- Yellow Point - Bullish RSI Div, current profit *zero*
 - Red Point - Bullish RSI Div, current profit *negative*
 - Green Point - Bullish RSI Div, current profit *positive*
----
-RSI Chart (14 Periods)
+- Yellow Point - Bullish RSI Div, current profit *zero*'''
+TEXT_STR_EXPLAIN_4 = '''RSI Chart (14 Periods)
 - Orange Line - *Overbought* Indicator
-- Green Line - *Oversold* Indicator
-'''
+- Green Line - *Oversold* Indicator'''
 TEXT_DESCRIPTION = 'Description'
-TEXT_SELECTBOX = 'Symbol - Industry - Latest Profit Probability'
-TEXT_SLIDER1 = 'Profit Probability Range (%)'
-TEXT_SLIDER2 = 'Historical Prediction Range (Minutes)'
+#TEXT_SELECTBOX = 'Symbol - Industry - Latest Profit Probability'
+TEXT_SELECTBOX = ''
+TEXT_SLIDER1 = 'Last Profit Probability (%)'
+TEXT_SLIDER2 = 'Historical Prediction Range (Mins)'
+TEXT_SIDEBAR_HEADER = '### Advanced Settings'
 TEXT_SIDEBAR_INPUT1 = 'Add symbols (e.g. BYND, IBM)'
 TEXT_SIDEBAR_INPUT2 = 'Remove symbols (e.g. SPOT, BA)'
 TEXT_SIDEBAR_INPUT3 = 'Current positions (e.g. TSLA, 630.5 )'
@@ -60,6 +59,12 @@ TEXT_SIDEBAR_RADIO = 'Sort By'
 TEXT_SIDEBAR_BUTTON = 'Show current profits'
 TEXT_SIDEBAR_ERROR = 'Empty or invalid input.'
 DATI_OLD = '19930417_0000'
+dt_sort_params = {
+    'Last Profit Probability':'proba_last',
+    'Max Profit Probability':'proba_max',
+    'Last Prediction Time':'datetime_last',
+    'Symbol':'sym',
+}
 
 @st.cache()
 def get_df_proba_sm():
@@ -137,6 +142,8 @@ def get_fig(df_c):
     sns.lineplot(data=df, x='period', y='rsi14', color='k', ax=axs[1])
     axs[1].axhline(y=30, color='g')
     axs[1].axhline(y=70, color='darkorange')
+    date_str = df['datetime'].astype('str').to_list()[0][:10]
+    axs[1].text(df['period'].max(), df['rsi14'].min(), date_str, horizontalalignment='right')
     # set ticks
     for ax in axs:
         ax.label_outer()
@@ -212,17 +219,21 @@ def get_str_explain(df_c):
     Returns:
         str_explain (str)
     '''
+    ls_str_explain = []
+    # latest price
+    latest_price = round(df_c['close'].to_list()[-1], 2)
+    ls_str_explain.append(TEXT_STR_EXPLAIN_1.format(latest_price))
+    # predictions
     ls_time = df_c[df_c['proba'].notnull()]['datetime'].dt.time.astype('str').str[:5].to_list()
     ls_proba = (df_c[df_c['proba'].notnull()]['proba']*100).astype('str').str[:4].to_list()
     ls_profit = (df_c[df_c['proba'].notnull()]['profit']*100).astype('str').str[:4].to_list()
-    ls_str_explain = []
-    latest_price = round(df_c['close'].to_list()[-1], 2)
-    str_latest_price = TEXT_STR_EXPLAIN_1.format(latest_price)
-    ls_str_explain.append(str_latest_price)
     for proba, time, profit in zip(ls_proba, ls_time, ls_profit):
         ls_str_explain.append(TEXT_STR_EXPLAIN_2.format(time, proba, profit))
-    ls_str_explain.append(TEXT_STR_EXPLAIN_3)
-    return '\n'.join(ls_str_explain)
+    # chart elements
+    for x in ['---', TEXT_STR_EXPLAIN_3, '---', TEXT_STR_EXPLAIN_4]:
+        ls_str_explain.append(x)
+    str_explain = '\n'.join(ls_str_explain)
+    return str_explain
 
 # UI Generation
 try:
@@ -230,13 +241,15 @@ try:
     st.set_option('deprecation.showPyplotGlobalUse', False)
     c1, c2, c3, c4, c5  = st.beta_columns((1,4,1,4,1))
     # sidebar - add/remove symbols
+    st.sidebar.write(TEXT_SIDEBAR_HEADER)
     ls_sym_add = st.sidebar.text_input(TEXT_SIDEBAR_INPUT1).replace(' ','').upper().split(',')
     if ls_sym_add == ['']: ls_sym_add = []
     ls_sym_rem = st.sidebar.text_input(TEXT_SIDEBAR_INPUT2).replace(' ','').upper().split(',')
     time_str = st.sidebar.text_input(TEXT_SIDEBAR_INPUT4).replace(' ','')
     if not time_str: time_str = '9999'
     # sidebar - get sort params
-    sort_params = st.sidebar.radio(TEXT_SIDEBAR_RADIO, ['proba_last', 'datetime_last', 'sym'])
+    sort_params = st.sidebar.radio(TEXT_SIDEBAR_RADIO, list(dt_sort_params.keys()))
+    sort_params = dt_sort_params[sort_params]
     ascending = 1 if sort_params == 'sym' else 0
     # sidebar - current profit
     ls_sym_entry = st.sidebar.text_input(TEXT_SIDEBAR_INPUT3).replace(' ','').upper().split(',')
@@ -253,7 +266,7 @@ try:
         df_proba_sm = get_df_proba_sm()
         date_str = df_proba_sm['datetime_last'].astype('str').to_list()[0][:10]
         # filter params
-        tup_proba_last = st.slider(TEXT_SLIDER1, min_value=0, max_value=100, value=(70,100), step=5, format='%d %%')
+        tup_proba_last = st.slider(TEXT_SLIDER1, min_value=0, max_value=100, value=(70,100), step=5)
         tup_proba_last = tuple(x/100 for x in tup_proba_last)
         ls_past_mins = [str(x+1) for x in range(9)] + [str(x+1) for x in range(10-1, 60, 10)] + ['All']
         past_mins = st.select_slider(TEXT_SLIDER2, ls_past_mins, 'All')
@@ -271,7 +284,8 @@ try:
         # add, remove sym
         ls_sym = list(dict.fromkeys(ls_sym + ls_sym_add)) #add new sym and remove duplicates
         ls_sym = [x for x in ls_sym if x not in ls_sym_rem]
-        st.write(TEXT_SYMBOLS_FOUND.format(len(ls_sym), date_str))
+        #st.write(TEXT_SYMBOLS_FOUND.format(len(ls_sym), date_str))
+        st.write('### {} of {} selected.'.format(len(ls_sym), df_proba_sm.shape[0]))
     if ls_sym:
         with c2:
             # single symbol selection
@@ -282,13 +296,12 @@ try:
             show_single = 1 if st.button(TEXT_BUTTON2.format(sym)) else 0
             show_multi = 1 if st.button(TEXT_BUTTON3) else 0
         with c4:
-            if 1: #show_single:
+            if show_single:
                 # chart single
                 dt_sym = df_sym[df_sym['sym']==sym].reset_index().to_dict('index')[0]
                 st.write(TEXT_FIG.format(
                     sym,
                     dt_sym['long_name'],
-                    date_str,
                     dt_sym['sec'],
                     dt_sym['ind'],
                     get_links(sym)
@@ -308,6 +321,9 @@ try:
                 df_c = get_df_c(ls_sym, time_str)
                 fig = get_fig_multi(ls_sym, df_c)
                 st.pyplot(fig)
+                # explain
+                exp_explain = st.beta_expander(TEXT_EXPLAIN)
+                exp_explain.write(TEXT_STR_EXPLAIN_3)
 except ConnectionError:
     st.write(f'Connection error! Try again in a few seconds.')
 except Exception as e:
