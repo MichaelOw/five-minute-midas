@@ -9,7 +9,6 @@ import warnings
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import yfinance as yf
 import streamlit as st
 from streamlit import caching
 import matplotlib.pyplot as plt
@@ -80,7 +79,6 @@ def get_df_proba_sm():
     global demo
     global f_demo_df_proba_sm
     if demo:
-        time.sleep(.5)
         df_proba_sm_demo = pd.read_parquet(f_demo_df_proba_sm)
         return df_proba_sm_demo
     # api call to get df_proba
@@ -98,7 +96,6 @@ def get_df_c(ls_sym, time_str):
     global demo
     global f_demo_df_c
     if demo:
-        time.sleep(.5)
         df = pd.read_parquet(f_demo_df_c)
         index = (df['sym'].isin(ls_sym))&(df['datetime'].dt.strftime('%H%M')<=time_str)
         df = df[index]
