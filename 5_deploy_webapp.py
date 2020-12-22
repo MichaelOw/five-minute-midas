@@ -33,7 +33,7 @@ TEXT_TITLE = '''# Five Minute Midas
 ### Predicting profitable day trading positions.
 ---
 '''
-TEXT_SYMBOLS_FOUND = '### {} of {} selected.'
+TEXT_SYMBOLS_FOUND = '### **{}** of {} symbols selected.'
 TEXT_FIG = '''## {} - {}
 #### {} - {}
 {}
@@ -48,14 +48,13 @@ TEXT_STR_EXPLAIN_2 = '- At {}, there was {}% chance of profit. Actual profit: {}
 TEXT_STR_EXPLAIN_3 = '''Price Chart
 - Red Line - Volume Weighted Average Price (VWAP)
 - Red Point - Bullish RSI Div, current profit *negative*
-- Green Point - Bullish RSI Div, current profit *positive*
-- Yellow Point - Bullish RSI Div, current profit *zero*'''
+- Green Point - Bullish RSI Div, current profit *positive*'''
 TEXT_STR_EXPLAIN_4 = '''RSI Chart (14 Periods)
 - Orange Line - *Overbought* Indicator
 - Green Line - *Oversold* Indicator'''
-TEXT_DESCRIPTION = 'Description'
+TEXT_DESCRIPTION = 'Company Description'
 TEXT_SELECTBOX = '' #'Symbol - Industry - Latest Profit Probability'
-TEXT_SLIDER1 = 'Last Profit Probability'
+TEXT_SLIDER1 = 'Profit Probability (Latest)'
 TEXT_SLIDER2 = 'Historical Prediction Range'
 TEXT_SIDEBAR_HEADER = '### Advanced Settings'
 TEXT_SIDEBAR_INPUT1 = 'Add Symbols (e.g. BYND, IBM)'
@@ -284,7 +283,8 @@ try:
             st.sidebar.write(TEXT_SIDEBAR_ERROR)
     with c2:
         st.write(TEXT_TITLE)
-        if st.button(TEXT_BUTTON1): caching.clear_cache() # refresh button
+        if not demo:
+            if st.button(TEXT_BUTTON1): caching.clear_cache() # refresh button
         # api call to get proba
         df_proba_sm = get_df_proba_sm()
         date_str = df_proba_sm['datetime_last'].astype('str').to_list()[0][:10]
@@ -292,7 +292,10 @@ try:
         tup_proba_last = st.slider(TEXT_SLIDER1, min_value=0, max_value=100, value=(70,100), step=5, format = '%d %%')
         tup_proba_last = tuple(x/100 for x in tup_proba_last)
         ls_past_mins = ['1 min'] + [str(x+2)+' mins' for x in range(8)] + [str(x+1)+' mins' for x in range(10-1, 60, 10)] + ['All']
-        past_mins = st.select_slider(TEXT_SLIDER2, ls_past_mins, 'All')
+        if demo:
+            past_mins = 'All'
+        else:
+            past_mins = st.select_slider(TEXT_SLIDER2, ls_past_mins, 'All')
         if past_mins == 'All':
             dati_target_str = DATI_OLD
         else:
@@ -335,13 +338,13 @@ try:
                 df_c = get_df_c([sym], time_str)
                 fig = get_fig(df_c)
                 st.pyplot(fig)
-                # description
-                exp_des = st.beta_expander(TEXT_DESCRIPTION)
-                exp_des.write(dt_sym['summary'])
                 # explain
                 str_explain = get_str_explain(df_c)
                 exp_explain = st.beta_expander(TEXT_EXPLAIN)
                 exp_explain.write(str_explain)
+                # description
+                exp_des = st.beta_expander(TEXT_DESCRIPTION)
+                exp_des.write(dt_sym['summary'])
             elif show_multi:
                 # chart multi
                 df_c = get_df_c(ls_sym, time_str)
