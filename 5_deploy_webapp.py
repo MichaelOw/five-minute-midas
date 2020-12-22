@@ -25,9 +25,9 @@ demo = 1
 f_demo_df_c = os.path.join(os.getcwd(), 'data', 'demo', 'df_c.parquet')
 f_demo_df_proba_sm = os.path.join(os.getcwd(), 'data', 'demo', 'df_proba_sm.parquet')
 if demo:
-    dir_db = os.path.join(os.getcwd(), 'data', 'db')
-else:
     dir_db = os.path.join(os.getcwd(), 'data', 'demo')
+else:
+    dir_db = os.path.join(os.getcwd(), 'data', 'db')
 db = DataBase([], dir_db=dir_db)
 # system strings
 TEXT_TITLE = '''# Five Minute Midas
