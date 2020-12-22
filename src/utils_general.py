@@ -1,7 +1,6 @@
 import os
 import sys
 import time
-import winsound
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -17,12 +16,6 @@ def suppress_stdout():
             yield
         finally:
             sys.stdout = old_stdout
-
-
-def beeps(n=3, frequency=200, duration=700):
-    '''Makes n beeps'''
-    for _ in range(n):
-        winsound.Beep(frequency, duration)
 
 def get_google_link(text):
     '''Return link to google news of the input text
