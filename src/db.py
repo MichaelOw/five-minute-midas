@@ -1,3 +1,4 @@
+import os
 import logging
 import sqlite3
 logger = logging.getLogger('root')
@@ -10,7 +11,7 @@ class DataBase:
             dir_db (str): Directory the database is in (Optional) e.g. 'D:\\Program Files\\simple_telegram_bot\\'
         '''
         logger.info('Loading db...')
-        self.conn = sqlite3.connect(dir_db + 'db.db')
+        self.conn = sqlite3.connect(os.path.join(dir_db, 'db.db'))
         c = self.conn.cursor()
         for db_init_str in ls_db_init_str:
             c.execute(db_init_str)

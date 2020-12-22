@@ -1,3 +1,5 @@
+import os
+import time
 import pytz
 import json
 import logging
@@ -6,26 +8,32 @@ import datetime
 import warnings
 import numpy as np
 import pandas as pd
-import yfinance as yf
 import seaborn as sns
+import yfinance as yf
 import streamlit as st
-import matplotlib.pyplot as plt
 from streamlit import caching
+import matplotlib.pyplot as plt
 from requests.exceptions import ConnectionError
 from src.db import DataBase
+from src.utils_stocks import get_curr_price
 from src.utils_general import get_yahoo_link
 from src.utils_general import get_google_link
 from src.utils_general import suppress_stdout
-from src.utils_stocks import get_curr_price
+# set up
 logging.getLogger().setLevel(logging.CRITICAL)
-with open('dir.txt') as f: dir_db = json.load(f)['dir_db']
+dir_db = os.path.join(os.getcwd(), 'data', 'db')
 db = DataBase([], dir_db=dir_db)
+# demo config
+demo = 1
+f_demo_df_c = os.path.join(os.getcwd(), 'data', 'demo', 'df_c.parquet')
+f_demo_df_proba_sm = os.path.join(os.getcwd(), 'data', 'demo', 'df_proba_sm.parquet')
 
+# system strings
 TEXT_TITLE = '''# Five Minute Midas
 ### Predicting profitable day trading positions.
 ---
 '''
-TEXT_SYMBOLS_FOUND = '### ***{}*** symbols found for ***{}***'
+TEXT_SYMBOLS_FOUND = '### {} of {} selected.'
 TEXT_FIG = '''## {} - {}
 #### {} - {}
 {}
@@ -46,17 +54,17 @@ TEXT_STR_EXPLAIN_4 = '''RSI Chart (14 Periods)
 - Orange Line - *Overbought* Indicator
 - Green Line - *Oversold* Indicator'''
 TEXT_DESCRIPTION = 'Description'
-#TEXT_SELECTBOX = 'Symbol - Industry - Latest Profit Probability'
-TEXT_SELECTBOX = ''
-TEXT_SLIDER1 = 'Last Profit Probability (%)'
-TEXT_SLIDER2 = 'Historical Prediction Range (Mins)'
+TEXT_SELECTBOX = '' #'Symbol - Industry - Latest Profit Probability'
+TEXT_SLIDER1 = 'Last Profit Probability'
+TEXT_SLIDER2 = 'Historical Prediction Range'
 TEXT_SIDEBAR_HEADER = '### Advanced Settings'
-TEXT_SIDEBAR_INPUT1 = 'Add symbols (e.g. BYND, IBM)'
-TEXT_SIDEBAR_INPUT2 = 'Remove symbols (e.g. SPOT, BA)'
-TEXT_SIDEBAR_INPUT3 = 'Current positions (e.g. TSLA, 630.5 )'
+TEXT_SIDEBAR_INPUT1 = 'Add Symbols (e.g. BYND, IBM)'
+TEXT_SIDEBAR_INPUT2 = 'Remove Symbols (e.g. SPOT, BA)'
+TEXT_SIDEBAR_INPUT3 = 'Current Positions (e.g. TSLA, 630, BA, 200 )'
 TEXT_SIDEBAR_INPUT4 = 'Simulate Time Cutoff (e.g. 0945)'
 TEXT_SIDEBAR_RADIO = 'Sort By'
-TEXT_SIDEBAR_BUTTON = 'Show current profits'
+TEXT_SIDEBAR_BUTTON = 'Show Current Profits'
+TEXT_SIDEBAR_WARN_DEMO = 'Feature disabled for demo.'
 TEXT_SIDEBAR_ERROR = 'Empty or invalid input.'
 DATI_OLD = '19930417_0000'
 dt_sort_params = {
@@ -68,6 +76,12 @@ dt_sort_params = {
 
 @st.cache()
 def get_df_proba_sm():
+    global demo
+    global f_demo_df_proba_sm
+    if demo:
+        time.sleep(.5)
+        df_proba_sm_demo = pd.read_parquet(f_demo_df_proba_sm)
+        return df_proba_sm_demo
     # api call to get df_proba
     url = 'http://localhost:5000/df_proba_sm'
     headers = {'content-type': 'application/json', 'Accept-Charset': 'UTF-8'}
@@ -80,6 +94,14 @@ def get_df_proba_sm():
 
 @st.cache()
 def get_df_c(ls_sym, time_str):
+    global demo
+    global f_demo_df_c
+    if demo:
+        time.sleep(.5)
+        df = pd.read_parquet(f_demo_df_c)
+        index = (df['sym'].isin(ls_sym))&(df['datetime'].dt.strftime('%H%M')<=time_str)
+        df = df[index]
+        return df
     dt_sym = {'ls_sym':ls_sym, 'time_str':time_str}
     url = 'http://localhost:5000/df_c'
     headers = {'content-type': 'application/json', 'Accept-Charset': 'UTF-8'}
@@ -120,7 +142,7 @@ def get_fig(df_c):
     df['close_div_loss'] = np.where((df['proba']>0)&(df['profit']<0), df['close'], np.nan)
     df['pv'] = np.where(df['peak_valley']!=0, df['close'], np.nan)
     # setup plot
-    fig, axs = plt.subplots(nrows=2, ncols=1, figsize=(8,6))
+    fig, axs = plt.subplots(nrows=2, ncols=1, figsize=(9,6))
     # top plot - price line plot
     sns.lineplot(data=df, x='period', y='close', ax=axs[0])
     sns.lineplot(data=df, x='period', y='vwap', color='r', ax=axs[0])
@@ -193,6 +215,9 @@ def get_df_curr_profit(ls_sym_entry):
     Returns:
         df_curr_profit (pandas.DataFrame)
     '''
+    global demo
+    if demo:
+        return pd.DataFrame({'Message':[TEXT_SIDEBAR_WARN_DEMO]})
     ls_sym = ls_sym_entry[0::2]
     ls_entry = ls_sym_entry[1::2]
     ls_target = []
@@ -237,7 +262,7 @@ def get_str_explain(df_c):
 
 # UI Generation
 try:
-    st.set_page_config(layout='wide')
+    st.set_page_config(layout='wide', initial_sidebar_state='collapsed', page_title='Five Minute Midas')
     st.set_option('deprecation.showPyplotGlobalUse', False)
     c1, c2, c3, c4, c5  = st.beta_columns((1,4,1,4,1))
     # sidebar - add/remove symbols
@@ -266,13 +291,15 @@ try:
         df_proba_sm = get_df_proba_sm()
         date_str = df_proba_sm['datetime_last'].astype('str').to_list()[0][:10]
         # filter params
-        tup_proba_last = st.slider(TEXT_SLIDER1, min_value=0, max_value=100, value=(70,100), step=5)
+        tup_proba_last = st.slider(TEXT_SLIDER1, min_value=0, max_value=100, value=(70,100), step=5, format = '%d %%')
         tup_proba_last = tuple(x/100 for x in tup_proba_last)
-        ls_past_mins = [str(x+1) for x in range(9)] + [str(x+1) for x in range(10-1, 60, 10)] + ['All']
+        ls_past_mins = ['1 min'] + [str(x+2)+' mins' for x in range(8)] + [str(x+1)+' mins' for x in range(10-1, 60, 10)] + ['All']
         past_mins = st.select_slider(TEXT_SLIDER2, ls_past_mins, 'All')
         if past_mins == 'All':
             dati_target_str = DATI_OLD
         else:
+            past_mins = past_mins.split()[0]
+            past_mins
             dati_target_str = (datetime.datetime.now(tz=pytz.timezone('US/Eastern'))+datetime.timedelta(minutes=-int(past_mins))).strftime('%Y%m%d_%H%M')
         # generate sym multiselect
         index = ((df_proba_sm['proba_last']>=tup_proba_last[0])
@@ -284,8 +311,7 @@ try:
         # add, remove sym
         ls_sym = list(dict.fromkeys(ls_sym + ls_sym_add)) #add new sym and remove duplicates
         ls_sym = [x for x in ls_sym if x not in ls_sym_rem]
-        #st.write(TEXT_SYMBOLS_FOUND.format(len(ls_sym), date_str))
-        st.write('### {} of {} selected.'.format(len(ls_sym), df_proba_sm.shape[0]))
+        st.write(TEXT_SYMBOLS_FOUND.format(len(ls_sym), df_proba_sm.shape[0]))
     if ls_sym:
         with c2:
             # single symbol selection
@@ -300,12 +326,14 @@ try:
                 # chart single
                 dt_sym = df_sym[df_sym['sym']==sym].reset_index().to_dict('index')[0]
                 st.write(TEXT_FIG.format(
-                    sym,
-                    dt_sym['long_name'],
-                    dt_sym['sec'],
-                    dt_sym['ind'],
-                    get_links(sym)
-                    ), unsafe_allow_html=1)
+                        sym,
+                        dt_sym['long_name'],
+                        dt_sym['sec'],
+                        dt_sym['ind'],
+                        get_links(sym)
+                    ),
+                    unsafe_allow_html=1
+                )
                 df_c = get_df_c([sym], time_str)
                 fig = get_fig(df_c)
                 st.pyplot(fig)

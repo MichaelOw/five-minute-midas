@@ -16,8 +16,8 @@ from src.utils_general import beeps
 from src.utils_general import timer_dec
 from src.utils_stocks import get_df_c
 from flask import Flask, request
-with open('dir.txt') as f: dir_db = json.load(f)['dir_db']
-with open('dir.txt') as f: dir_models = json.load(f)['dir_models']
+dir_db = os.path.join(os.getcwd(), 'data', 'db')
+dir_models = os.path.join(os.getcwd(), 'data', 'models')
 
 # user parameters
 buffer_seconds = 100000
@@ -93,7 +93,7 @@ def api_get_df_c():
         ls_df = []
         for sym in ls_sym:
             df = get_df_c(sym, date_str, live_data, db, target_profit, target_loss)
-            df = df[df['datetime'].dt.strftime('%H%M')<time_str]
+            df = df[df['datetime'].dt.strftime('%H%M')<=time_str]
             df_proba = get_df_proba(df, tup_model)
             if not df_proba.empty:
                 df = pd.merge(df, df_proba[['sym','datetime','proba']], how='left', on=['sym', 'datetime'])

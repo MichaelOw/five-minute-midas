@@ -55,7 +55,7 @@ def get_df_parquet(ls_f, directory=''):
     ls_df = []
     ls_date_str = []
     for f in ls_f:
-        df = pd.read_parquet(directory + f)
+        df = pd.read_parquet(os.path.join(directory, f))
         ls_date_str_new = list(df.datetime.dt.date.astype(str).unique())
         for date_str in ls_date_str_new:
             assert date_str not in ls_date_str, f'"{date_str}" is found more than once!'
