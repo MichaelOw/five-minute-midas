@@ -1,3 +1,4 @@
+# add progress bar
 import os
 import time
 import pytz
@@ -29,11 +30,11 @@ else:
     dir_db = os.path.join(os.getcwd(), 'data', 'db')
 db = DataBase([], dir_db=dir_db)
 # system strings
+TEXT_PAGE_TITLE = 'Five Minute Midas'
 TEXT_TITLE = '''# Five Minute Midas
 ### Predicting profitable day trading positions.
----
-'''
-TEXT_SYMBOLS_FOUND = '### **{}** of {} symbols selected.'
+---'''
+TEXT_SYMBOLS_FOUND = '### **{}** of {} symbols selected.{}\n---'
 TEXT_FIG = '''## {} - {}
 #### {} - {}
 {}
@@ -53,7 +54,7 @@ TEXT_STR_EXPLAIN_4 = '''RSI Chart (14 Periods)
 - Orange Line - *Overbought* Indicator
 - Green Line - *Oversold* Indicator'''
 TEXT_DESCRIPTION = 'Company Description'
-TEXT_SELECTBOX = '' #'Symbol - Industry - Latest Profit Probability'
+TEXT_SELECTBOX = 'Symbol - Industry - Profit Probability (Latest)'
 TEXT_SLIDER1 = 'Profit Probability (Latest)'
 TEXT_SLIDER2 = 'Historical Prediction Range'
 TEXT_SIDEBAR_HEADER = '### Advanced Settings'
@@ -65,6 +66,11 @@ TEXT_SIDEBAR_RADIO = 'Sort By'
 TEXT_SIDEBAR_BUTTON = 'Show Current Profits'
 TEXT_SIDEBAR_WARN_DEMO = 'Feature disabled for demo.'
 TEXT_SIDEBAR_ERROR = 'Empty or invalid input.'
+TEXT_SIDEBAR_INFO = '''### Other Information
+- See the code: [Github](https://github.com/MichaelOw/five-minute-midas-demo)
+- Get in touch: [LinkedIn](https://www.linkedin.com/in/michael-ow/)
+- Read the article: Coming soon!
+'''
 DATI_OLD = '19930417_0000'
 dt_sort_params = {
     'Last Profit Probability':'proba_last',
@@ -259,7 +265,7 @@ def get_str_explain(df_c):
 
 # UI Generation
 try:
-    st.set_page_config(layout='wide', initial_sidebar_state='collapsed', page_title='Five Minute Midas')
+    st.set_page_config(layout='wide', initial_sidebar_state='collapsed', page_title=TEXT_PAGE_TITLE)
     st.set_option('deprecation.showPyplotGlobalUse', False)
     c1, c2, c3, c4, c5  = st.beta_columns((1,4,1,4,1))
     # sidebar - add/remove symbols
@@ -281,6 +287,8 @@ try:
             st.sidebar.write(df_curr_profit)
         else:
             st.sidebar.write(TEXT_SIDEBAR_ERROR)
+    # sidebar - other information
+    st.sidebar.write(TEXT_SIDEBAR_INFO)
     with c2:
         st.write(TEXT_TITLE)
         if not demo:
@@ -289,7 +297,7 @@ try:
         df_proba_sm = get_df_proba_sm()
         date_str = df_proba_sm['datetime_last'].astype('str').to_list()[0][:10]
         # filter params
-        tup_proba_last = st.slider(TEXT_SLIDER1, min_value=0, max_value=100, value=(70,100), step=5, format = '%d %%')
+        tup_proba_last = st.slider(TEXT_SLIDER1, min_value=0, max_value=100, value=(90,100), step=5, format = '%d %%')
         tup_proba_last = tuple(x/100 for x in tup_proba_last)
         ls_past_mins = ['1 min'] + [str(x+2)+' mins' for x in range(8)] + [str(x+1)+' mins' for x in range(10-1, 60, 10)] + ['All']
         if demo:
@@ -312,7 +320,8 @@ try:
         # add, remove sym
         ls_sym = list(dict.fromkeys(ls_sym + ls_sym_add)) #add new sym and remove duplicates
         ls_sym = [x for x in ls_sym if x not in ls_sym_rem]
-        st.write(TEXT_SYMBOLS_FOUND.format(len(ls_sym), df_proba_sm.shape[0]))
+        optional_text = '\n ### Try changing the Profit Probability.' if len(ls_sym)==0 else ''
+        st.write(TEXT_SYMBOLS_FOUND.format(len(ls_sym), df_proba_sm.shape[0], optional_text))
     if ls_sym:
         with c2:
             # single symbol selection
@@ -321,7 +330,9 @@ try:
             ls_sym_mod = (df_sym['sym'] + ' - ' + df_sym['ind'] + ' - ' + (df_sym['proba_last']*100).astype('str').str[:4] + '%').to_list()
             sym = st.selectbox(TEXT_SELECTBOX, ls_sym_mod, index=0).split()[0]
             show_single = 1 if st.button(TEXT_BUTTON2.format(sym)) else 0
-            show_multi = 1 if st.button(TEXT_BUTTON3) else 0
+            show_multi = 0
+            if len(ls_sym) <= 20:
+                show_multi = 1 if st.button(TEXT_BUTTON3) else 0                
         with c4:
             if show_single:
                 # chart single
