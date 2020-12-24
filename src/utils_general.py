@@ -155,3 +155,59 @@ def plot_divergences(df, title, save_dir = ''):
         time_str = datetime.datetime.now().strftime('%H%M')
         plt.savefig(f'{save_dir}\\{sym}_{time_str}_{profit_proba_max}.png', bbox_inches='tight')
     plt.show()
+
+def db_remove_dups_stocks(db):
+    '''Removes duplicates in table prices_d
+    Args:
+        db (DataBase object)
+    '''
+    print('Removing duplicates...')
+    q = '''
+        DELETE
+          FROM stocks
+         WHERE ROWID NOT IN
+               (SELECT MAX(ROWID)
+                  FROM stocks
+                 GROUP BY sym)
+    '''
+    db.execute(q)
+
+def db_remove_dups_prices_m(db, date_str):
+    '''Removes duplicates in table prices_m.
+    Starts looking in dates >= date_str
+    Args:
+        db (DataBase object)
+        date_str (str): e.g. 2020-12-24
+    '''
+    print('Removing duplicates...')
+    q = '''
+        DELETE
+          FROM prices_m
+         WHERE DATE(datetime)>='{}'
+           AND ROWID NOT IN
+               (SELECT MAX(ROWID)
+                 FROM prices_m
+                WHERE DATE(datetime)>='{}'
+                GROUP BY sym, datetime)
+    '''.format(date_str, date_str)
+    db.execute(q)
+
+def db_remove_dups_prices_d(db, date_str):
+    '''Removes duplicates in table prices_d.
+    Starts looking in dates >= date_str
+    Args:
+        db (DataBase object)
+        date_str (str): e.g. 2020-12-24
+    '''
+    print('Removing duplicates...')
+    q = '''
+        DELETE
+          FROM prices_d
+         WHERE DATE(date)>='{}'
+           AND ROWID NOT IN
+               (SELECT MAX(ROWID)
+                 FROM prices_d
+                WHERE DATE(date)>='{}'
+                GROUP BY sym, date)
+    '''.format(date_str, date_str)
+    db.execute(q)

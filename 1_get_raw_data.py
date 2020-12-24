@@ -11,6 +11,9 @@ from src.utils_date import add_days
 from src.utils_stocks import get_ls_sym
 from src.utils_stocks import get_df_prices
 from src.utils_stocks import suppress_stdout
+from src.utils_general import db_remove_dups_stocks
+from src.utils_general import db_remove_dups_prices_m
+from src.utils_general import db_remove_dups_prices_d
 dir_db = os.path.join(os.getcwd(), 'data', 'db')
 dir_db_demo = os.path.join(os.getcwd(), 'data', 'demo')
 
@@ -19,50 +22,17 @@ dir_db_demo = os.path.join(os.getcwd(), 'data', 'demo')
 ###############################
 
 def beeps(n=3):
+    '''Produces n low beeps. Default: 3'''
     for _ in range(n):
         winsound.Beep(200,500)
 
-def db_remove_dups_prices_m(db, date_str):
-    print('Removing duplicates...')
-    q = '''
-        DELETE
-          FROM prices_m
-         WHERE DATE(datetime)>='{}'
-           AND ROWID NOT IN
-               (SELECT MAX(ROWID)
-                 FROM prices_m
-                WHERE DATE(datetime)>='{}'
-                GROUP BY sym, datetime)
-    '''.format(date_str, date_str)
-    db.execute(q)
-
-def db_remove_dups_prices_d(db, date_str):
-    print('Removing duplicates...')
-    q = '''
-        DELETE
-          FROM prices_d
-         WHERE DATE(date)>='{}'
-           AND ROWID NOT IN
-               (SELECT MAX(ROWID)
-                 FROM prices_d
-                WHERE DATE(date)>='{}'
-                GROUP BY sym, date)
-    '''.format(date_str, date_str)
-    db.execute(q)
-
-def db_remove_dups_stocks(db):
-    print('Removing duplicates...')
-    q = '''
-        DELETE
-          FROM stocks
-         WHERE ROWID NOT IN
-               (SELECT MAX(ROWID)
-                  FROM stocks
-                 GROUP BY sym)
-    '''
-    db.execute(q)
-
 def get_df_info(sym):
+    '''Returns dataframe containing general info about input symbol
+    Args:
+        sym (str): e.g.  BYND
+    Returns:
+        df_info (pandas.DataFrame)
+    '''
     dt_info = yf.Ticker(sym).info
     dt_info['timestamp'] = datetime.datetime.now()
     dt_info['sector'] = dt_info.get('sector')
@@ -77,11 +47,18 @@ def get_df_info(sym):
         'timestamp':'timestamp',
     }
     dt_info = {key:dt_info.get(key) for key in dt_col}
-    df = pd.DataFrame([dt_info])
-    df = df.rename(columns=dt_col)
-    return df
+    df_info = pd.DataFrame([dt_info])
+    df_info = df_info.rename(columns=dt_col)
+    return df_info
 
-def get_ls_df_prices_m(ls_sym, ls_date_str):
+def get_df_prices_m(ls_sym, ls_date_str):
+    '''Returns dataframe containing minute-level prices
+    of symbols in input list
+    Args:
+        ls_sym (List of str): e.g. ['BYND', 'IBM']
+    Returns:
+        df_prices_m (pandas.DataFrame)
+    '''
     candles_min = 200
     count = 0
     count_e = 0
@@ -104,7 +81,8 @@ def get_ls_df_prices_m(ls_sym, ls_date_str):
             count_e+=1
     print(f'Errors: {count_e}/{count} ({round(count_e/count, 3)})')
     print(dt_errors)
-    return ls_df
+    df_prices_m = pd.concat(ls_df)
+    return df_prices_m
 
 ls_init_str = [
     #prices_m
@@ -228,10 +206,9 @@ q = '''
 '''
 ls_sym = pd.read_sql(q, db.conn)['sym'].to_list()
 # extract and load
-ls_df = get_ls_df_prices_m(ls_sym, ls_date_str)
-if ls_df:
-    df = pd.concat(ls_df)
-    df.to_sql('prices_m', db.conn, if_exists='append', index=0)
+df_prices_m = get_df_prices_m(ls_sym, ls_date_str)
+if not df_prices_m.empty:
+    df_prices_m.to_sql('prices_m', db.conn, if_exists='append', index=0)
     db_remove_dups_prices_m(db, ls_date_str[0])
 beeps(1)
 

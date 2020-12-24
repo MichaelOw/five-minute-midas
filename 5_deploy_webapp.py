@@ -340,9 +340,8 @@ try:
             df_sym = pd.merge(df_sym, df_proba_sm, how='left', on='sym').sort_values(sort_params, ascending=ascending)
             ls_sym_mod = get_ls_sym_mod(df_sym, sort_params)
             sym = st.selectbox(TEXT_SELECTBOX, ls_sym_mod, index=0).split()[0]
-            show_auto = st.checkbox('Auto Generate')
-            show_single = 0
-            if not show_auto: show_single = 1 if st.button(TEXT_BUTTON2.format(sym)) else 0
+            show_single = st.checkbox('Auto Generate')
+            if not show_single: show_single = 1 if st.button(TEXT_BUTTON2.format(sym)) else 0
             show_multi = 0
             if len(ls_sym) <= 20: show_multi = 1 if st.button(TEXT_BUTTON3) else 0
         with c4:
