@@ -34,7 +34,8 @@ TEXT_TITLE = '''# Five Minute Midas
 ---'''
 TEXT_ADVICE = '\n ### Try changing the **Profit Probability.**'
 TEXT_SYMBOLS_FOUND = '### {} of {} symbols selected.{}\n---'
-TEXT_FIG = '''## {} - {}
+TEXT_FIG = '''---
+## {} - {}
 #### {} - {}
 {}
 '''
@@ -55,7 +56,7 @@ TEXT_STR_EXPLAIN_4 = '''RSI Chart (14 Periods)
 - Orange Line - *Overbought* Indicator
 - Green Line - *Oversold* Indicator'''
 TEXT_DESCRIPTION = 'Company Description'
-TEXT_SELECTBOX = 'Symbol - Industry - Profit Probability (Latest)'
+TEXT_SELECTBOX = 'Choose Symbol' #'Symbol - Industry - Profit Probability (Latest)'
 TEXT_SLIDER1 = 'Profit Probability (Latest)'
 TEXT_SLIDER2 = 'Historical Prediction Range'
 TEXT_SIDEBAR_HEADER = '### Advanced Settings'
@@ -286,7 +287,7 @@ def get_sidebar_text_input_list(label):
 # UI Generation
 try:
     # config and columns
-    st.set_page_config(layout='wide', initial_sidebar_state='collapsed', page_title=TEXT_PAGE_TITLE)
+    st.set_page_config(initial_sidebar_state='collapsed', page_title=TEXT_PAGE_TITLE) #layout='wide'
     st.set_option('deprecation.showPyplotGlobalUse', False)
     c1, c2, c3, c4, c5  = st.beta_columns((1,4,1,4,1))
     # sidebar - get sort params
@@ -309,86 +310,86 @@ try:
             st.sidebar.write(TEXT_SIDEBAR_ERROR)
     # sidebar - other information
     st.sidebar.write(TEXT_SIDEBAR_INFO)
-    with c2:
-        empty_slot1 = st.empty()
-        if not demo:
-            if st.button(TEXT_BUTTON1): caching.clear_cache() # refresh button
-        # api call to get proba
-        df_proba_sm = get_df_proba_sm()
-        date_str = df_proba_sm['datetime_last'].astype('str').to_list()[0][:10]
-        empty_slot1.write(TEXT_TITLE.format(date_str))
-        # filter params
-        tup_proba_last = st.slider(TEXT_SLIDER1, min_value=0, max_value=100, value=(90,100), step=5, format = '%d %%')
-        tup_proba_last = tuple(x/100 for x in tup_proba_last)
-        ls_past_mins = ['1 min'] + [str(x+2)+' mins' for x in range(8)] + [str(x+1)+' mins' for x in range(10-1, 60, 10)] + ['All']
-        if demo:
-            past_mins = 'All'
-        else:
-            past_mins = st.select_slider(TEXT_SLIDER2, ls_past_mins, 'All')
-        if past_mins == 'All':
-            dati_target_str = DATI_OLD
-        else:
-            past_mins = past_mins.split()[0]
-            past_mins
-            dati_target_str = (datetime.datetime.now(tz=pytz.timezone('US/Eastern'))+datetime.timedelta(minutes=-int(past_mins))).strftime('%Y%m%d_%H%M')
-        # generate sym multiselect
-        index = ((df_proba_sm['proba_last']>=tup_proba_last[0])
-                    &(df_proba_sm['proba_last']<=tup_proba_last[1])
-                    &(df_proba_sm['datetime_last'].dt.strftime('%Y%m%d_%H%M')>=dati_target_str))
-        ls_sym = df_proba_sm[index].sort_values(sort_params, ascending=ascending)['sym'].to_list()
-        # df_proba_sm
-        ls_col = ['sym', 'datetime_last', 'proba_last']
-        # add, remove sym
-        ls_sym = list(dict.fromkeys(ls_sym + ls_sym_add)) # remove duplicates without order change
-        ls_sym = [x for x in ls_sym if x not in ls_sym_rem]
-        optional_text = TEXT_ADVICE if len(ls_sym)==0 else ''
-        st.write(TEXT_SYMBOLS_FOUND.format(len(ls_sym), df_proba_sm.shape[0], optional_text))
+    empty_slot1 = st.empty()
+    if not demo:
+        if st.button(TEXT_BUTTON1): caching.clear_cache() # refresh button
+    # api call to get proba
+    df_proba_sm = get_df_proba_sm()
+    date_str = df_proba_sm['datetime_last'].astype('str').to_list()[0][:10]
+    empty_slot1.write(TEXT_TITLE.format(date_str))
+    # filter params
+    tup_proba_last = st.slider(TEXT_SLIDER1, min_value=0, max_value=100, value=(90,100), step=5, format = '%d %%')
+    tup_proba_last = tuple(x/100 for x in tup_proba_last)
+    ls_past_mins = ['1 min'] + [str(x+2)+' mins' for x in range(8)] + [str(x+1)+' mins' for x in range(10-1, 60, 10)] + ['All']
+    if demo:
+        past_mins = 'All'
+    else:
+        past_mins = st.select_slider(TEXT_SLIDER2, ls_past_mins, 'All')
+    if past_mins == 'All':
+        dati_target_str = DATI_OLD
+    else:
+        past_mins = past_mins.split()[0]
+        past_mins
+        dati_target_str = (datetime.datetime.now(tz=pytz.timezone('US/Eastern'))+datetime.timedelta(minutes=-int(past_mins))).strftime('%Y%m%d_%H%M')
+    # generate sym multiselect
+    index = ((df_proba_sm['proba_last']>=tup_proba_last[0])
+                &(df_proba_sm['proba_last']<=tup_proba_last[1])
+                &(df_proba_sm['datetime_last'].dt.strftime('%Y%m%d_%H%M')>=dati_target_str))
+    ls_sym = df_proba_sm[index].sort_values(sort_params, ascending=ascending)['sym'].to_list()
+    # df_proba_sm
+    ls_col = ['sym', 'datetime_last', 'proba_last']
+    # add, remove sym
+    ls_sym = list(dict.fromkeys(ls_sym + ls_sym_add)) # remove duplicates without order change
+    ls_sym = [x for x in ls_sym if x not in ls_sym_rem]
+    optional_text = TEXT_ADVICE if len(ls_sym)==0 else ''
+    st.write(TEXT_SYMBOLS_FOUND.format(len(ls_sym), df_proba_sm.shape[0], optional_text))
     if ls_sym:
-        with c2:
-            # single symbol selection
-            df_sym = get_df_sym(ls_sym, db)
-            df_sym = pd.merge(df_sym, df_proba_sm, how='left', on='sym').sort_values(sort_params, ascending=ascending)
-            ls_sym_mod = get_ls_sym_mod(df_sym, sort_params)
-            sym = st.selectbox(TEXT_SELECTBOX, ls_sym_mod, index=0).split()[0]
-            #chart_mode = st.radio('', ['Manual', 'Auto'])
-            if True: #chart_mode == 'Auto':
-                chart_type = 'single'
-            else:
-                chart_type = 'single' if st.button(TEXT_BUTTON2.format(sym)) else None
-            if len(ls_sym) <= 30:
-                chart_type = 'multi' if st.button(TEXT_BUTTON3) else chart_type
-        with c4:
-            if chart_type == 'multi':
-                # chart multi
-                st.write(TEXT_FIG_MULTI)
-                df_c = get_df_c(ls_sym, time_str)
-                fig = get_fig_multi(ls_sym, df_c)
-                st.pyplot(fig)
-                # explain
-                exp_explain = st.beta_expander(TEXT_EXPLAIN)
-                exp_explain.write(TEXT_STR_EXPLAIN_3)
-            elif chart_type == 'single':
-                # chart single
-                dt_sym = df_sym[df_sym['sym']==sym].reset_index().to_dict('index')[0]
-                st.write(TEXT_FIG.format(
-                        sym,
-                        dt_sym['long_name'],
-                        dt_sym['sec'],
-                        dt_sym['ind'],
-                        TEXT_LINKS.format(get_google_link(sym), get_yahoo_link(sym))
-                    ),
-                    unsafe_allow_html=1
-                )
-                df_c = get_df_c([sym], time_str)
-                fig = get_fig(df_c)
-                st.pyplot(fig)
-                # explain
-                str_explain = get_str_explain(df_c)
-                exp_explain = st.beta_expander(TEXT_EXPLAIN)
-                exp_explain.write(str_explain)
-                # description
-                exp_des = st.beta_expander(TEXT_DESCRIPTION)
-                exp_des.write(dt_sym['summary'])
+        # single symbol selection
+        df_sym = get_df_sym(ls_sym, db)
+        df_sym = pd.merge(df_sym, df_proba_sm, how='left', on='sym').sort_values(sort_params, ascending=ascending)
+        ls_sym_mod = get_ls_sym_mod(df_sym, sort_params)
+        sym = st.selectbox(TEXT_SELECTBOX, ls_sym_mod, index=0).split()[0]
+        emp1 = st.empty()
+        emp2 = st.empty()
+        auto_mode = st.checkbox('Auto Mode (Single)')
+        if auto_mode:
+            chart_type = 'single'
+        else:
+            chart_type = 'single' if emp1.button(TEXT_BUTTON2.format(sym)) else None
+        if len(ls_sym) <= 30:
+            chart_type = 'multi' if emp2.button(TEXT_BUTTON3) else chart_type
+        # charts
+        if chart_type == 'multi':
+            # chart multi
+            st.write(TEXT_FIG_MULTI)
+            df_c = get_df_c(ls_sym, time_str)
+            fig = get_fig_multi(ls_sym, df_c)
+            st.pyplot(fig)
+            # explain
+            exp_explain = st.beta_expander(TEXT_EXPLAIN)
+            exp_explain.write(TEXT_STR_EXPLAIN_3)
+        elif chart_type == 'single':
+            # chart single
+            dt_sym = df_sym[df_sym['sym']==sym].reset_index().to_dict('index')[0]
+            st.write(TEXT_FIG.format(
+                    sym,
+                    dt_sym['long_name'],
+                    dt_sym['sec'],
+                    dt_sym['ind'],
+                    TEXT_LINKS.format(get_google_link(sym), get_yahoo_link(sym))
+                ),
+                unsafe_allow_html=1
+            )
+            df_c = get_df_c([sym], time_str)
+            fig = get_fig(df_c)
+            st.pyplot(fig)
+            # explain
+            str_explain = get_str_explain(df_c)
+            exp_explain = st.beta_expander(TEXT_EXPLAIN)
+            exp_explain.write(str_explain)
+            # description
+            exp_des = st.beta_expander(TEXT_DESCRIPTION)
+            exp_des.write(dt_sym['summary'])
 except ConnectionError:
     st.write(f'Connection error! Try again in a few seconds.')
 except Exception as e:
