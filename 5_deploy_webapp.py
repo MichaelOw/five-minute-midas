@@ -38,10 +38,12 @@ TEXT_FIG = '''## {} - {}
 #### {} - {}
 {}
 '''
+TEXT_FIG_MULTI = '## All Symbols Summary'
 TEXT_LINKS = '''[G-News]({}), [Y-Finance]({})'''
 TEXT_BUTTON1 = 'Refresh Cache'
-TEXT_BUTTON2 = 'Show Charts - {}'
+TEXT_BUTTON2 = 'Show Charts - Single'
 TEXT_BUTTON3 = 'Show Charts - All Symbols'
+TEXT_CHECK = 'Auto Generate'
 TEXT_EXPLAIN = 'Explain'
 TEXT_STR_EXPLAIN_1 = 'Latest price: ${}'
 TEXT_STR_EXPLAIN_2 = '- At {}, there was {}% chance of profit. Actual profit: {}%'
@@ -184,7 +186,7 @@ def get_fig_multi(ls_sym, df_c):
     bar = st.progress(0.0)
     for i in range(n):
         for j in range(3):
-            bar.progress((i*3+j)/(len(ls_sym)+1))
+            bar.progress((i*3+j)/(len(ls_sym)))
             pos = (i, j)
             if n==1:
                 pos = j
@@ -261,6 +263,7 @@ def get_str_explain(df_c):
     return str_explain
 
 def get_ls_sym_mod(df_sym, sort_params):
+    '''Return nice str list that will be display in selectbox'''
     ls_sym_mod = (df_sym['sym']
                     + ' - '
                     + df_sym['ind']
@@ -274,6 +277,7 @@ def get_ls_sym_mod(df_sym, sort_params):
     return ls_sym_mod
 
 def get_sidebar_text_input_list(label):
+    '''Template for getting nicely formatted list from text_input widget'''
     ls_str = st.sidebar.text_input(label).replace(',',' ').upper().split(' ')
     ls_str = [x for x in ls_str if x]
     if ls_str == ['']: ls_str = []
@@ -346,20 +350,24 @@ try:
             df_sym = pd.merge(df_sym, df_proba_sm, how='left', on='sym').sort_values(sort_params, ascending=ascending)
             ls_sym_mod = get_ls_sym_mod(df_sym, sort_params)
             sym = st.selectbox(TEXT_SELECTBOX, ls_sym_mod, index=0).split()[0]
-            show_single = st.checkbox('Auto Generate')
-            if not show_single: show_single = 1 if st.button(TEXT_BUTTON2.format(sym)) else 0
-            show_multi = 0
-            if len(ls_sym) <= 20: show_multi = 1 if st.button(TEXT_BUTTON3) else 0
+            #chart_mode = st.radio('', ['Manual', 'Auto'])
+            if True: #chart_mode == 'Auto':
+                chart_type = 'single'
+            else:
+                chart_type = 'single' if st.button(TEXT_BUTTON2.format(sym)) else None
+            if len(ls_sym) <= 30:
+                chart_type = 'multi' if st.button(TEXT_BUTTON3) else chart_type
         with c4:
-            if show_multi:
+            if chart_type == 'multi':
                 # chart multi
+                st.write(TEXT_FIG_MULTI)
                 df_c = get_df_c(ls_sym, time_str)
                 fig = get_fig_multi(ls_sym, df_c)
                 st.pyplot(fig)
                 # explain
                 exp_explain = st.beta_expander(TEXT_EXPLAIN)
                 exp_explain.write(TEXT_STR_EXPLAIN_3)
-            elif show_single:
+            elif chart_type == 'single':
                 # chart single
                 dt_sym = df_sym[df_sym['sym']==sym].reset_index().to_dict('index')[0]
                 st.write(TEXT_FIG.format(
