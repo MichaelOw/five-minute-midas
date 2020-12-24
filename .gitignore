@@ -1,11 +1,11 @@
-.ipynb_checkpoints
 _old
 data
 documentation
 mlflow
 src/__pycache__
 venv
-6_test_api.ipynb
 dir.txt
 debug.log
 z*
+notebooks/z_run_jupyter.bat
+notebooks/.ipynb_checkpoints
