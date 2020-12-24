@@ -34,7 +34,8 @@ TEXT_PAGE_TITLE = 'Five Minute Midas'
 TEXT_TITLE = '''# Five Minute Midas
 ### Predicting profitable day trading positions.
 ---'''
-TEXT_SYMBOLS_FOUND = '### **{}** of {} symbols selected.{}\n---'
+TEXT_ADVICE = '\n ### Try changing the **Profit Probability.**'
+TEXT_SYMBOLS_FOUND = '### {} of {} symbols selected.{}\n---'
 TEXT_FIG = '''## {} - {}
 #### {} - {}
 {}
@@ -73,9 +74,9 @@ TEXT_SIDEBAR_INFO = '''### Other Information
 '''
 DATI_OLD = '19930417_0000'
 dt_sort_params = {
-    'Last Profit Probability':'proba_last',
-    'Max Profit Probability':'proba_max',
-    'Last Prediction Time':'datetime_last',
+    'Profit Probability (Latest)':'proba_last',
+    'Profit Probability (Max)':'proba_max',
+    'Prediction Time (Latest)':'datetime_last',
     'Symbol':'sym',
 }
 
@@ -113,10 +114,6 @@ def get_df_c(ls_sym, time_str):
     df = pd.DataFrame(**data)
     df['datetime'] = pd.to_datetime(df['datetime'], unit='ms')
     return df
-
-def get_links(sym):
-    links = (TEXT_LINKS.format(get_google_link(sym), get_yahoo_link(sym)))
-    return links
 
 def get_df_sym(ls_sym, db):
     if len(ls_sym)==1: ls_sym = ls_sym + ls_sym #tuples with one element have incompatible trailing comma
@@ -263,6 +260,20 @@ def get_str_explain(df_c):
     str_explain = '\n'.join(ls_str_explain)
     return str_explain
 
+def get_ls_sym_mod(df_sym, sort_params):
+    ls_sym_mod = (df_sym['sym']
+                    + ' - '
+                    + df_sym['ind']
+                    + ' - '
+                    + (df_sym['proba_last']*100).astype('str').str[:4]
+                    + '%'
+                    + np.where(df_sym['proba_last']==df_sym['proba_max']
+                        ,''
+                        ,' (Max: '+(df_sym['proba_max']*100).astype('str').str[:4]+'%)')
+                    ).to_list()
+    return ls_sym_mod
+
+
 # UI Generation
 try:
     st.set_page_config(layout='wide', initial_sidebar_state='collapsed', page_title=TEXT_PAGE_TITLE)
@@ -320,21 +331,30 @@ try:
         # add, remove sym
         ls_sym = list(dict.fromkeys(ls_sym + ls_sym_add)) #add new sym and remove duplicates
         ls_sym = [x for x in ls_sym if x not in ls_sym_rem]
-        optional_text = '\n ### Try changing the Profit Probability.' if len(ls_sym)==0 else ''
+        optional_text = TEXT_ADVICE if len(ls_sym)==0 else ''
         st.write(TEXT_SYMBOLS_FOUND.format(len(ls_sym), df_proba_sm.shape[0], optional_text))
     if ls_sym:
         with c2:
             # single symbol selection
             df_sym = get_df_sym(ls_sym, db)
             df_sym = pd.merge(df_sym, df_proba_sm, how='left', on='sym').sort_values(sort_params, ascending=ascending)
-            ls_sym_mod = (df_sym['sym'] + ' - ' + df_sym['ind'] + ' - ' + (df_sym['proba_last']*100).astype('str').str[:4] + '%').to_list()
+            ls_sym_mod = get_ls_sym_mod(df_sym, sort_params)
             sym = st.selectbox(TEXT_SELECTBOX, ls_sym_mod, index=0).split()[0]
-            show_single = 1 if st.button(TEXT_BUTTON2.format(sym)) else 0
+            show_auto = st.checkbox('Auto Generate')
+            show_single = 0
+            if not show_auto: show_single = 1 if st.button(TEXT_BUTTON2.format(sym)) else 0
             show_multi = 0
-            if len(ls_sym) <= 20:
-                show_multi = 1 if st.button(TEXT_BUTTON3) else 0                
+            if len(ls_sym) <= 20: show_multi = 1 if st.button(TEXT_BUTTON3) else 0
         with c4:
-            if show_single:
+            if show_multi:
+                # chart multi
+                df_c = get_df_c(ls_sym, time_str)
+                fig = get_fig_multi(ls_sym, df_c)
+                st.pyplot(fig)
+                # explain
+                exp_explain = st.beta_expander(TEXT_EXPLAIN)
+                exp_explain.write(TEXT_STR_EXPLAIN_3)
+            elif show_single:
                 # chart single
                 dt_sym = df_sym[df_sym['sym']==sym].reset_index().to_dict('index')[0]
                 st.write(TEXT_FIG.format(
@@ -342,7 +362,7 @@ try:
                         dt_sym['long_name'],
                         dt_sym['sec'],
                         dt_sym['ind'],
-                        get_links(sym)
+                        TEXT_LINKS.format(get_google_link(sym), get_yahoo_link(sym))
                     ),
                     unsafe_allow_html=1
                 )
@@ -356,14 +376,6 @@ try:
                 # description
                 exp_des = st.beta_expander(TEXT_DESCRIPTION)
                 exp_des.write(dt_sym['summary'])
-            elif show_multi:
-                # chart multi
-                df_c = get_df_c(ls_sym, time_str)
-                fig = get_fig_multi(ls_sym, df_c)
-                st.pyplot(fig)
-                # explain
-                exp_explain = st.beta_expander(TEXT_EXPLAIN)
-                exp_explain.write(TEXT_STR_EXPLAIN_3)
 except ConnectionError:
     st.write(f'Connection error! Try again in a few seconds.')
 except Exception as e:
