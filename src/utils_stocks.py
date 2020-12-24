@@ -34,7 +34,6 @@ def get_ls_sym():
     ]
     ls_sym = []
     for i, url in enumerate(ls_urls):
-        print(f'Extracting symbols from URL {i+1}/{len(ls_urls)}...')
         df = pd.read_csv(url, sep='|')
         for col in list(df):
             if col in ['ACT Symbol', 'Symbol']: df['sym'] = df[col]
