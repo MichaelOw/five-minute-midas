@@ -1,8 +1,4 @@
-'''
-notes
-- api to get latest df_c with profit proba (specify symbols+timing)
-'''
-
+import os
 import time
 import json
 import pickle
@@ -12,23 +8,23 @@ import threading
 import numpy as np
 import pandas as pd
 from src.db import DataBase
-from src.utils_general import beeps
-from src.utils_general import timer_dec
-from src.utils_stocks import get_df_c
 from flask import Flask, request
+from src.utils_stocks import get_df_c
+from src.utils_general import timer_dec
 dir_db = os.path.join(os.getcwd(), 'data', 'db')
 dir_models = os.path.join(os.getcwd(), 'data', 'models')
 
 # user parameters
 buffer_seconds = 100000
-date_str = '2020-12-09'
+date_str = '2020-12-17'
 live_data = 0
 f_model = 'tup_model_2020-12-06_1640.p'
-sym_limit = 100#None
+sym_limit = 100 #None
 
 # load model
 print('Loading...', end = '')
-tup_model = pickle.load(open(dir_models+f_model, 'rb'))
+with open(os.path.join(dir_models, f_model), 'rb') as f:
+    tup_model = pickle.load(f)
 
 # api
 app = Flask(__name__)
@@ -36,6 +32,7 @@ print('Done!')
 
 @app.route('/df_proba', methods=['POST'])
 def api_get_df_proba():
+    '''API that returns all predictions in dataframe in JSON'''
     global dir_db
     db = DataBase([], dir_db)
     q = '''
@@ -48,10 +45,12 @@ def api_get_df_proba():
     '''
     df_proba = pd.read_sql(q, db.conn)
     j_df_proba = df_proba.to_json(orient='split')
+    db.close()
     return j_df_proba
 
 @app.route('/df_proba_sm', methods=['POST'])
 def api_get_df_proba_sm():
+    '''API that returns prediction summary in dataframe in JSON'''
     global dir_db
     db = DataBase([], dir_db)
     q = '''
@@ -75,10 +74,12 @@ def api_get_df_proba_sm():
     df2 = df2[['sym', 'datetime_last', 'proba_last']]
     df_proba_sm = pd.merge(df1, df2, how='left', on='sym')
     j_df_proba_sm = df_proba_sm.to_json(orient='split')
+    db.close()
     return j_df_proba_sm
 
 @app.route('/df_c', methods=['POST'])
 def api_get_df_c():
+    '''API that returns full price dataframe in JSON for input symbol(s)'''
     global dir_db
     global tup_model
     global date_str
@@ -102,12 +103,19 @@ def api_get_df_c():
             ls_df.append(df)
         df_c = pd.concat(ls_df)
         j_df_c = df_c.to_json(orient='split')
+        db.close()
         return j_df_c
     except Exception as e:
         print(sym, type(e).__name__, e.args) #traceback.print_exc()
+        db.close()
         return pd.DataFrame().to_json(orient='split')
 
 def get_df_sym_filter(db):
+    '''Returns dataframe of stock symbols in
+    pre-selected sectors and industries
+    Args:
+        db (DataBase)
+    '''
     ls_sec = [       
         'Technology',
         'Utilities',
@@ -151,8 +159,8 @@ def get_df_sym_filter(db):
     return df
 
 def get_df_proba(df_c, tup_model):
-    '''Get df_proba
-        Args:
+    '''Returns dataframe with only profit predictions
+    Args:
         df_c (pandas.DataFrame)
         tup_model (tup):
             q (str): Pandas query string
@@ -180,7 +188,10 @@ def get_df_proba(df_c, tup_model):
     return df_proba
 
 @timer_dec
-def update_stuff():
+def update_predictions():
+    '''Runs an iteration of model predictions on
+    selected symbols and saves output in database
+    '''
     global dir_db
     global tup_model
     global j_df_proba
@@ -210,6 +221,6 @@ def update_stuff():
 if __name__ == '__main__':
     db = DataBase([], dir_db)
     db.execute('DELETE FROM proba')
-    x = threading.Thread(target=update_stuff, daemon=True)
+    x = threading.Thread(target=update_predictions, daemon=True)
     x.start()
     app.run(debug=False, host='0.0.0.0')

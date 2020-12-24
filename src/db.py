@@ -49,6 +49,6 @@ class DataBase:
             ls_rows.append(row)
         return ls_rows
 
-    def close_connection(self):
+    def close(self):
         '''Closes connection'''
         self.conn.close()

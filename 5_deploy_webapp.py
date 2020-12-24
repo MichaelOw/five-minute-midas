@@ -24,10 +24,8 @@ logging.getLogger().setLevel(logging.CRITICAL)
 demo = 1
 f_demo_df_c = os.path.join(os.getcwd(), 'data', 'demo', 'df_c.parquet')
 f_demo_df_proba_sm = os.path.join(os.getcwd(), 'data', 'demo', 'df_proba_sm.parquet')
-if demo:
-    dir_db = os.path.join(os.getcwd(), 'data', 'demo')
-else:
-    dir_db = os.path.join(os.getcwd(), 'data', 'db')
+dir_db = os.path.join(os.getcwd(), 'data', 'db')
+if demo: dir_db = os.path.join(os.getcwd(), 'data', 'demo')
 db = DataBase([], dir_db=dir_db)
 # system strings
 TEXT_PAGE_TITLE = 'Five Minute Midas'
@@ -273,25 +271,30 @@ def get_ls_sym_mod(df_sym, sort_params):
                     ).to_list()
     return ls_sym_mod
 
+def get_sidebar_text_input_list(label):
+    ls_str = st.sidebar.text_input(label).replace(',',' ').upper().split(' ')
+    ls_str = [x for x in ls_str if x]
+    if ls_str == ['']: ls_str = []
+    return ls_str
 
 # UI Generation
 try:
+    # config and columns
     st.set_page_config(layout='wide', initial_sidebar_state='collapsed', page_title=TEXT_PAGE_TITLE)
     st.set_option('deprecation.showPyplotGlobalUse', False)
     c1, c2, c3, c4, c5  = st.beta_columns((1,4,1,4,1))
-    # sidebar - add/remove symbols
-    st.sidebar.write(TEXT_SIDEBAR_HEADER)
-    ls_sym_add = st.sidebar.text_input(TEXT_SIDEBAR_INPUT1).replace(' ','').upper().split(',')
-    if ls_sym_add == ['']: ls_sym_add = []
-    ls_sym_rem = st.sidebar.text_input(TEXT_SIDEBAR_INPUT2).replace(' ','').upper().split(',')
-    time_str = st.sidebar.text_input(TEXT_SIDEBAR_INPUT4).replace(' ','')
-    if not time_str: time_str = '9999'
     # sidebar - get sort params
+    st.sidebar.write(TEXT_SIDEBAR_HEADER)
     sort_params = st.sidebar.radio(TEXT_SIDEBAR_RADIO, list(dt_sort_params.keys()))
     sort_params = dt_sort_params[sort_params]
     ascending = 1 if sort_params == 'sym' else 0
+    # sidebar - add/remove symbols
+    ls_sym_add = get_sidebar_text_input_list(TEXT_SIDEBAR_INPUT1)
+    ls_sym_rem = get_sidebar_text_input_list(TEXT_SIDEBAR_INPUT2)
+    time_str = st.sidebar.text_input(TEXT_SIDEBAR_INPUT4).replace(' ','')
+    if not time_str: time_str = '9999'
     # sidebar - current profit
-    ls_sym_entry = st.sidebar.text_input(TEXT_SIDEBAR_INPUT3).replace(' ','').upper().split(',')
+    ls_sym_entry = get_sidebar_text_input_list(TEXT_SIDEBAR_INPUT3)
     if st.sidebar.button(TEXT_SIDEBAR_BUTTON):
         if len(ls_sym_entry)%2==0:
             df_curr_profit = get_df_curr_profit(ls_sym_entry)
@@ -329,7 +332,7 @@ try:
         # df_proba_sm
         ls_col = ['sym', 'datetime_last', 'proba_last']
         # add, remove sym
-        ls_sym = list(dict.fromkeys(ls_sym + ls_sym_add)) #add new sym and remove duplicates
+        ls_sym = list(dict.fromkeys(ls_sym + ls_sym_add)) # remove duplicates without order change
         ls_sym = [x for x in ls_sym if x not in ls_sym_rem]
         optional_text = TEXT_ADVICE if len(ls_sym)==0 else ''
         st.write(TEXT_SYMBOLS_FOUND.format(len(ls_sym), df_proba_sm.shape[0], optional_text))
