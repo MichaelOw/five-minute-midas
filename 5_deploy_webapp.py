@@ -30,7 +30,7 @@ db = DataBase([], dir_db=dir_db)
 # system strings
 TEXT_PAGE_TITLE = 'Five Minute Midas'
 TEXT_TITLE = '''# Five Minute Midas
-### Predicting profitable day trading positions.
+### Predicting profitable day trading positions for *{}*.
 ---'''
 TEXT_ADVICE = '\n ### Try changing the **Profit Probability.**'
 TEXT_SYMBOLS_FOUND = '### {} of {} symbols selected.{}\n---'
@@ -181,8 +181,10 @@ def get_fig_multi(ls_sym, df_c):
     if not ls_sym: return
     n = (len(ls_sym)+(3-1))//3
     fig, axs = plt.subplots(nrows=n, ncols=3, figsize=(3*4,n*4))
+    bar = st.progress(0.0)
     for i in range(n):
         for j in range(3):
+            bar.progress((i*3+j)/(len(ls_sym)+1))
             pos = (i, j)
             if n==1:
                 pos = j
@@ -304,12 +306,13 @@ try:
     # sidebar - other information
     st.sidebar.write(TEXT_SIDEBAR_INFO)
     with c2:
-        st.write(TEXT_TITLE)
+        empty_slot1 = st.empty()
         if not demo:
             if st.button(TEXT_BUTTON1): caching.clear_cache() # refresh button
         # api call to get proba
         df_proba_sm = get_df_proba_sm()
         date_str = df_proba_sm['datetime_last'].astype('str').to_list()[0][:10]
+        empty_slot1.write(TEXT_TITLE.format(date_str))
         # filter params
         tup_proba_last = st.slider(TEXT_SLIDER1, min_value=0, max_value=100, value=(90,100), step=5, format = '%d %%')
         tup_proba_last = tuple(x/100 for x in tup_proba_last)
