@@ -1,4 +1,3 @@
-# add progress bar
 import os
 import time
 import pytz
@@ -44,7 +43,7 @@ TEXT_LINKS = '''[G-News]({}), [Y-Finance]({})'''
 TEXT_BUTTON1 = 'Refresh Cache'
 TEXT_BUTTON2 = 'Show Charts - Single'
 TEXT_BUTTON3 = 'Show Charts - All Symbols'
-TEXT_CHECK = 'Auto Generate'
+TEXT_CHECK = 'Auto Mode (Single)'
 TEXT_EXPLAIN = 'Explain'
 TEXT_STR_EXPLAIN_1 = 'Latest price: ${}'
 TEXT_STR_EXPLAIN_2 = '- At {}, there was {}% chance of profit. Actual profit: {}%'
@@ -351,7 +350,7 @@ try:
         sym = st.selectbox(TEXT_SELECTBOX, ls_sym_mod, index=0).split()[0]
         emp1 = st.empty()
         emp2 = st.empty()
-        auto_mode = st.checkbox('Auto Mode (Single)')
+        auto_mode = st.checkbox(TEXT_CHECK)
         if auto_mode:
             chart_type = 'single'
         else:
