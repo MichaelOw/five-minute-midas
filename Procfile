@@ -1,0 +1,1 @@
+web: sh setup.sh && streamlit run 5_deploy_webapp.py
