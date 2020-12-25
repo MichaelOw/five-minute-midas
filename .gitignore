@@ -9,5 +9,6 @@ data/train
 src/__pycache__
 notebooks/z_run_jupyter.bat
 notebooks/.ipynb_checkpoints
+notebooks/debug.log
 
 

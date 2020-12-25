@@ -7,6 +7,7 @@ import pandas as pd
 import yfinance as yf
 from tqdm import tqdm
 from src.db import DataBase
+from src.utils_beeps import beeps
 from src.utils_date import add_days
 from src.utils_stocks import get_ls_sym
 from src.utils_stocks import get_df_prices
@@ -20,12 +21,6 @@ dir_db_demo = os.path.join(os.getcwd(), 'data', 'demo')
 ###############################
 # Initialize functions and db #
 ###############################
-
-def beeps(n=3):
-    '''Produces n low beeps. Default: 3'''
-    for _ in range(n):
-        winsound.Beep(200,500)
-
 def get_df_info(sym):
     '''Returns dataframe containing general info about input symbol
     Args:

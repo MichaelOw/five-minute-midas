@@ -41,8 +41,8 @@ TEXT_FIG = '''---
 TEXT_FIG_MULTI = '## All Symbols Summary'
 TEXT_LINKS = '''[G-News]({}), [Y-Finance]({})'''
 TEXT_BUTTON1 = 'Refresh Cache'
-TEXT_BUTTON2 = 'Show Charts - Single'
-TEXT_BUTTON3 = 'Show Charts - All Symbols'
+TEXT_BUTTON2 = 'Show Chart - Single'
+TEXT_BUTTON3 = 'Show Chart - All Symbols'
 TEXT_CHECK = 'Auto Mode (Single)'
 TEXT_EXPLAIN = 'Explain'
 TEXT_STR_EXPLAIN_1 = 'Latest price: ${}'
@@ -59,18 +59,18 @@ TEXT_SELECTBOX = 'Choose Symbol' #'Symbol - Industry - Profit Probability (Lates
 TEXT_SLIDER1 = 'Profit Probability (Latest)'
 TEXT_SLIDER2 = 'Historical Prediction Range'
 TEXT_SIDEBAR_HEADER = '### Advanced Settings'
-TEXT_SIDEBAR_INPUT1 = 'Add Symbols (e.g. BYND, IBM)'
-TEXT_SIDEBAR_INPUT2 = 'Remove Symbols (e.g. SPOT, BA)'
-TEXT_SIDEBAR_INPUT3 = 'Current Positions (e.g. TSLA, 630, BA, 200 )'
+TEXT_SIDEBAR_INPUT1 = 'Add Symbols (e.g. BYND IBM)'
+TEXT_SIDEBAR_INPUT2 = 'Remove Symbols (e.g. SPOT BA)'
+TEXT_SIDEBAR_INPUT3 = 'Current Positions (e.g. TSLA 630)'
 TEXT_SIDEBAR_INPUT4 = 'Simulate Time Cutoff (e.g. 0945)'
 TEXT_SIDEBAR_RADIO = 'Sort By'
 TEXT_SIDEBAR_BUTTON = 'Show Current Profits'
 TEXT_SIDEBAR_WARN_DEMO = 'Feature disabled for demo.'
 TEXT_SIDEBAR_ERROR = 'Empty or invalid input.'
 TEXT_SIDEBAR_INFO = '''### Information
-- See the code: [GitHub Repo](https://github.com/MichaelOw/five-minute-midas)
-- Developer contact: [LinkedIn](https://www.linkedin.com/in/michael-ow/)
-- Read the article: Coming soon!
+- See code: [GitHub Repo](https://github.com/MichaelOw/five-minute-midas)
+- Developer: [Michael](https://www.linkedin.com/in/michael-ow/)
+- Read article: Coming soon!
 '''
 DATI_OLD = '19930417_0000'
 dt_sort_params = {
@@ -288,7 +288,7 @@ try:
     # config and columns
     st.set_page_config(initial_sidebar_state='collapsed', page_title=TEXT_PAGE_TITLE) #layout='wide'
     st.set_option('deprecation.showPyplotGlobalUse', False)
-    c1, c2, c3, c4, c5  = st.beta_columns((1,4,1,4,1))
+    #c1, c2, c3, c4, c5  = st.beta_columns((1,4,1,4,1))
     # sidebar - get sort params
     st.sidebar.write(TEXT_SIDEBAR_HEADER)
     sort_params = st.sidebar.radio(TEXT_SIDEBAR_RADIO, list(dt_sort_params.keys()))
