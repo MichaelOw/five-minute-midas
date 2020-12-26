@@ -45,7 +45,7 @@ TEXT_BUTTON2 = 'Show Chart - Single'
 TEXT_BUTTON3 = 'Show Chart - All Symbols'
 TEXT_CHECK = 'Auto Mode (Single)'
 TEXT_EXPLAIN = 'Explain'
-TEXT_STR_EXPLAIN_1 = 'Latest price: ${}'
+TEXT_STR_EXPLAIN_1 = 'Latest price: ${}, {} from day before'
 TEXT_STR_EXPLAIN_2 = '- At {}, there was {}% chance of profit. Actual profit: {}%'
 TEXT_STR_EXPLAIN_3 = '''Price Chart
 - Red Line - Volume Weighted Average Price (VWAP)
@@ -239,17 +239,18 @@ def get_df_curr_profit(ls_sym_entry):
     df_curr_profit = df_curr_profit.sort_values('profit', ascending=0)
     return df_curr_profit
 
-def get_str_explain(df_c):
+def get_str_explain(df_c, pchange_str):
     '''Returns multi-line string that explains the features in chart
     Args:
         df_c (pandas.DataFrame)
+        pchange_str (str)
     Returns:
         str_explain (str)
     '''
     ls_str_explain = []
     # latest price
     latest_price = round(df_c['close'].to_list()[-1], 2)
-    ls_str_explain.append(TEXT_STR_EXPLAIN_1.format(latest_price))
+    ls_str_explain.append(TEXT_STR_EXPLAIN_1.format(latest_price, pchange_str))
     # predictions
     ls_time = df_c[df_c['proba'].notnull()]['datetime'].dt.time.astype('str').str[:5].to_list()
     ls_proba = (df_c[df_c['proba'].notnull()]['proba']*100).astype('str').str[:4].to_list()
@@ -412,9 +413,9 @@ try:
             )
             st.pyplot(fig)
             # explain
-            str_explain = get_str_explain(df_c)
+            str_explain = get_str_explain(df_c, pchange_str)
             exp_explain = st.beta_expander(TEXT_EXPLAIN)
-            exp_explain.write(str_explain)
+            exp_explain.write(str_explain, unsafe_allow_html=1)
             # description
             exp_des = st.beta_expander(TEXT_DESCRIPTION)
             exp_des.write(dt_sym['summary'])
