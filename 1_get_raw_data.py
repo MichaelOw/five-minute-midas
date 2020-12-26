@@ -55,12 +55,9 @@ def get_df_prices_m(ls_sym, ls_date_str):
         df_prices_m (pandas.DataFrame)
     '''
     candles_min = 200
-    count = 0
-    count_e = 0
     ls_df = []
     dt_errors = {}
     for i, sym in enumerate(tqdm(ls_sym)):
-        count+=1
         try:
             df = get_df_prices(sym, ls_date_str[0], ls_date_str[-1])
             len_unique_dates = len(df['datetime'].dt.date.unique())
@@ -73,9 +70,8 @@ def get_df_prices_m(ls_sym, ls_date_str):
                 ls_df.append(df)
         except Exception as e:
             dt_errors[sym] = f'Error: {sym}, {type(e).__name__}: {str(e)}'
-            count_e+=1
-    print(f'Errors: {count_e}/{count} ({round(count_e/count, 3)})')
-    print(dt_errors)
+    [print(f'{x} - {dt_errors[x]}') for x in dt_errors]
+    print('Errors: {}/{} {:.3f})}'.format(len(dt_errors)), len(ls_sym), len(dt_errors)/len(ls_sym))
     df_prices_m = pd.concat(ls_df)
     return df_prices_m
 
@@ -170,8 +166,8 @@ if ls_sym:
             df.to_sql('stocks_error', db.conn, if_exists='append', index=0)
     # print errors
     if dt_errors:
-        print(f'Errors: {len(dt_errors)}/{len(ls_sym)} {round(len(dt_errors)/len(ls_sym), 3)}')
-        print(dt_errors)
+        [print(f'{x} - {dt_errors[x]}') for x in dt_errors]
+        print('Errors: {}/{} {:.3f})}'.format(len(dt_errors)), len(ls_sym), len(dt_errors)/len(ls_sym))
     # remove duplicates
     db_remove_dups_stocks(db)
 beeps(1)
@@ -258,7 +254,8 @@ if not df.empty:
             count_e+=1
     if ls_df:
         # load
-        print(count, count_e, round(count_e/count, 3))
+        [print(f'{x} - {dt_errors[x]}') for x in dt_errors]
+        print('Errors: {}/{} {:.3f})}'.format(len(dt_errors)), len(ls_sym), len(dt_errors)/len(ls_sym))
         df = pd.concat(ls_df)
         df.to_sql('prices_d', db.conn, if_exists='append', index=0)
         db_remove_dups_prices_d(db, max_date_str)

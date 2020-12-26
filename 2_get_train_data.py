@@ -1,4 +1,4 @@
-date_start = '2020-12-14' #'2020-06-23'
+date_start = '2020-12-21' #'2020-06-23'
 
 import os
 import json
@@ -26,22 +26,24 @@ target_loss = -0.031
 ls_date_str = get_ls_date_str_from_db(date_start, '2022-01-01', db) 
 print('Creating df_train for date range: {} to {}'.format(ls_date_str[0], ls_date_str[-1]))
 # extract and transform
-count, count_e = 0, 0
 ls_df_t = []
 dt_errors = {}
 for date_str in ls_date_str:
     print(date_str)
     df_sym = get_df_sym(db, date_str)
     for i, tup in tqdm(df_sym.iterrows(), total=df_sym.shape[0]):
-        count+=1
         try:
             df_c = get_df_c(tup['sym'], date_str, live_data, db, target_profit, target_loss)
             ls_df_t.append(df_c[df_c['divergence']!=''])
         except Exception as e:
             dt_errors[tup['sym']] = f'Error: {type(e).__name__} {e}'
-            count_e+=1
-print('Errors:', count_e, count, round(count_e/count, 3))
-print(dt_errors)
+[print(f'{x} - {dt_errors[x]}') for x in dt_errors]
+print('Errors: {}/{} {:.3f}'.format(
+    len(dt_errors)
+    ,df_sym.shape[0]*len(ls_date_str)
+    ,len(dt_errors)/(df_sym.shape[0]*len(ls_date_str))
+    )
+)
 # save df_train
 if ls_df_t:
     df_t = pd.concat(ls_df_t)

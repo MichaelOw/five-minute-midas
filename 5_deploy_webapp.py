@@ -68,7 +68,7 @@ TEXT_SIDEBAR_BUTTON = 'Show Current Profits'
 TEXT_SIDEBAR_WARN_DEMO = 'Feature disabled for demo.'
 TEXT_SIDEBAR_ERROR = 'Empty or invalid input.'
 TEXT_SIDEBAR_INFO = '''### Information
-- See code: [GitHub Repo](https://github.com/MichaelOw/five-minute-midas)
+- See code: [GitHub](https://github.com/MichaelOw/five-minute-midas)
 - Developer: [Michael](https://www.linkedin.com/in/michael-ow/)
 - Read article: Coming soon!
 '''
