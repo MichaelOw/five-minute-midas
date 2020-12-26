@@ -1,14 +1,14 @@
 _*
-z*
-debug.log
+*z*
+*debug.log
+*__pycache__
+*.ipynb_checkpoints
 venv
 mlflow
 data/db
 data/models
 data/train
-src/__pycache__
-notebooks/z_run_jupyter.bat
-notebooks/.ipynb_checkpoints
-notebooks/debug.log
+
+
 
 
