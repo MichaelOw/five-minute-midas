@@ -34,7 +34,7 @@ TEXT_TITLE = '''# Five Minute Midas
 TEXT_ADVICE = '\n ### Try changing the **Profit Probability.**'
 TEXT_SYMBOLS_FOUND = '### {} of {} symbols selected.{}\n---'
 TEXT_FIG = '''---
-## {} - {}
+## {} - {} {}
 #### {} - {}
 {}
 '''
@@ -263,7 +263,13 @@ def get_str_explain(df_c):
     return str_explain
 
 def get_ls_sym_mod(df_sym, sort_params):
-    '''Return nice str list that will be display in selectbox'''
+    '''Return nice str list that will be display in selectbox
+    Args:
+        df_sym (pandas.DataFrame)
+        sort_params (str)
+    Returns:
+        ls_sym_mod (list of str)
+    '''
     ls_sym_mod = (df_sym['sym']
                     + ' - '
                     + df_sym['ind']
@@ -277,11 +283,32 @@ def get_ls_sym_mod(df_sym, sort_params):
     return ls_sym_mod
 
 def get_sidebar_text_input_list(label):
-    '''Template for getting nicely formatted list from text_input widget'''
+    '''Template for getting nicely formatted list from text_input widget
+    Args:
+        label (str): text_input widget label
+    Returns:
+        ls_str (list of str)
+    '''
     ls_str = st.sidebar.text_input(label).replace(',',' ').upper().split(' ')
     ls_str = [x for x in ls_str if x]
     if ls_str == ['']: ls_str = []
     return ls_str
+
+def get_pchange_str(df_c):
+    '''Returns nice formatted string of the percentage
+    change in price from yesterday's close
+    Args:
+        df_c (pandas.DataFrame)
+    Returns:
+        pchange_str (str)
+    '''
+    close_prev = df_c['prev_close'].values[0]
+    close_latest =  df_c['close'].values[-1]
+    pchange = (close_latest/close_prev-1)*100
+    pchange_color = 'green' if pchange>0 else 'red'
+    pchange_sign = '+' if pchange>0 else ''
+    pchange_str = '<span style="color:{}">{}{:.2f}%</span>'.format(pchange_color, pchange_sign, pchange)
+    return pchange_str
 
 # UI Generation
 try:
@@ -370,17 +397,19 @@ try:
         elif chart_type == 'single':
             # chart single
             dt_sym = df_sym[df_sym['sym']==sym].reset_index().to_dict('index')[0]
+            df_c = get_df_c([sym], time_str)
+            pchange_str = get_pchange_str(df_c)
+            fig = get_fig(df_c)
             st.write(TEXT_FIG.format(
                     sym,
                     dt_sym['long_name'],
+                    pchange_str,
                     dt_sym['sec'],
                     dt_sym['ind'],
                     TEXT_LINKS.format(get_google_link(sym), get_yahoo_link(sym))
                 ),
                 unsafe_allow_html=1
             )
-            df_c = get_df_c([sym], time_str)
-            fig = get_fig(df_c)
             st.pyplot(fig)
             # explain
             str_explain = get_str_explain(df_c)
