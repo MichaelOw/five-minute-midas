@@ -1,14 +1,27 @@
 # Five Minute Midas
-## Predicting profitable day trading positions.
+## Overview
+- End-to-end machine learning project: Predicting profitable day trading positions using a binary classification model.
+- Read the Medium article (coming soon!)
+- Try the [web app demo](https://five-minute-midas.herokuapp.com/)
+<img src="data/demo/demo.gif" width="50%" height="50%">
 
-### Overview
+## Features
+- Data collection and storage of price data from Yahoo Finance (SQLite3)
+- Feature engineering; trading indicators (pandas)
+- ML model training, hyperparameter tuning and tracking (scikit-learn, MLflow)
+- ML model deployment: API and web app (Flask, Streamlit)
+
+## Data Pipeline
+<img src="data/demo/pipeline.png" width="50%" height="50%">
+
+## Installation
+- Use **requirements.txt** for the demo.
+- Use **requirements_full.txt** for all scripts.
+
+## Methodology
 - Minute-level price data is extracted, and filtered to those with [Bullish RSI Divergence](https://www.google.com/search?q=bullish+rsi+divergence)
 - These filtered points and their respective profit/loss outcomes are used to train an ML classifier
 - With the trained model, we can try to predict future profit/loss outcomes
 
-### Try the [Demo](https://five-minute-midas.herokuapp.com/)
-<img src="data/demo/demo.gif" width="50%" height="50%">
-
-### Notes
-- **requirements.txt** is only for the demo.
-- **requirements_full.txt** is for all scripts.
+## Credits
+- Price data extracted with the help of the [yfinance](https://github.com/ranaroussi/yfinance) library, created and maintained by [Ran Aroussi](https://github.com/ranaroussi) and other contributors
