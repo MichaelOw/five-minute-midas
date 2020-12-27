@@ -7,7 +7,7 @@
 - With the trained model, we can try to predict future profit/loss outcomes
 
 ### Try the [Demo](https://five-minute-midas.herokuapp.com/)
-<img src="data/demo/demo.png" width="50%" height="50%">
+<img src="data/demo/demo.gif" width="50%" height="50%">
 
 ### Notes
 - **requirements.txt** is only for the demo.
