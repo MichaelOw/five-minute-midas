@@ -1,3 +1,6 @@
+'''
+💹💰💷💶💴💵💸🤖👩‍💻🧑‍💻👨‍💻📉📈📊
+'''
 import os
 import time
 import pytz
@@ -28,7 +31,7 @@ if demo: dir_db = os.path.join(os.getcwd(), 'data', 'demo')
 db = DataBase([], dir_db=dir_db)
 # system strings
 TEXT_PAGE_TITLE = 'Five Minute Midas'
-TEXT_TITLE = '''# Five Minute Midas
+TEXT_TITLE = '''# Five Minute Midas 📈
 ### Predicting profitable day trading positions for *{}*.
 ---'''
 TEXT_ADVICE = '\n ### Try changing the **Profit Probability.**'
@@ -41,9 +44,7 @@ TEXT_FIG = '''---
 TEXT_FIG_MULTI = '## All Symbols Summary'
 TEXT_LINKS = '''[G-News]({}), [Y-Finance]({})'''
 TEXT_BUTTON1 = 'Refresh Cache'
-TEXT_BUTTON2 = 'Show Chart - Single'
-TEXT_BUTTON3 = 'Show Chart - All Symbols'
-TEXT_CHECK = 'Auto Mode (Single)'
+TEXT_BUTTON3 = 'or Show All'
 TEXT_EXPLAIN = 'Explain'
 TEXT_STR_EXPLAIN_1 = 'Latest price: ${}, {} from day before'
 TEXT_STR_EXPLAIN_2 = '- At {}, there was {}% chance of profit. Actual profit: {}%'
@@ -55,7 +56,8 @@ TEXT_STR_EXPLAIN_4 = '''RSI Chart (14 Periods)
 - Orange Line - *Overbought* Indicator
 - Green Line - *Oversold* Indicator'''
 TEXT_DESCRIPTION = 'Company Description'
-TEXT_SELECTBOX = 'Choose Symbol' #'Symbol - Industry - Profit Probability (Latest)'
+TEXT_SELECTBOX = '' #'Symbol - Industry - Profit Probability (Latest)'
+TEXT_SELECT_DEFAULT = 'Choose a Symbol...'
 TEXT_SLIDER1 = 'Profit Probability (Latest)'
 TEXT_SLIDER2 = 'Historical Prediction Range'
 TEXT_SIDEBAR_HEADER = '### Advanced Settings'
@@ -258,7 +260,7 @@ def get_str_explain(df_c, pchange_str):
     for proba, time, profit in zip(ls_proba, ls_time, ls_profit):
         ls_str_explain.append(TEXT_STR_EXPLAIN_2.format(time, proba, profit))
     # chart elements
-    for x in ['---', TEXT_STR_EXPLAIN_3, '---', TEXT_STR_EXPLAIN_4]:
+    for x in ['---', TEXT_STR_EXPLAIN_3, '---', TEXT_STR_EXPLAIN_4, '---']:
         ls_str_explain.append(x)
     str_explain = '\n'.join(ls_str_explain)
     return str_explain
@@ -375,16 +377,11 @@ try:
         df_sym = get_df_sym(ls_sym, db)
         df_sym = pd.merge(df_sym, df_proba_sm, how='left', on='sym').sort_values(sort_params, ascending=ascending)
         ls_sym_mod = get_ls_sym_mod(df_sym, sort_params)
+        ls_sym_mod = [TEXT_SELECT_DEFAULT] + ls_sym_mod
         sym = st.selectbox(TEXT_SELECTBOX, ls_sym_mod, index=0).split()[0]
-        emp1 = st.empty()
-        emp2 = st.empty()
-        auto_mode = st.checkbox(TEXT_CHECK)
-        if auto_mode:
-            chart_type = 'single'
-        else:
-            chart_type = 'single' if emp1.button(TEXT_BUTTON2.format(sym)) else None
-        if len(ls_sym) <= 30:
-            chart_type = 'multi' if emp2.button(TEXT_BUTTON3) else chart_type
+        chart_type = 'single'
+        if len(ls_sym) <= 30 and st.button(TEXT_BUTTON3):
+            chart_type = 'multi'
         # charts
         if chart_type == 'multi':
             # chart multi
@@ -395,7 +392,7 @@ try:
             # explain
             exp_explain = st.beta_expander(TEXT_EXPLAIN)
             exp_explain.write(TEXT_STR_EXPLAIN_3)
-        elif chart_type == 'single':
+        elif chart_type == 'single' and sym != TEXT_SELECT_DEFAULT.split()[0]:
             # chart single
             dt_sym = df_sym[df_sym['sym']==sym].reset_index().to_dict('index')[0]
             df_c = get_df_c([sym], time_str)
