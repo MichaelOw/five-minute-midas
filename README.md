@@ -3,7 +3,7 @@
 - End-to-end machine learning project: Predicting profitable day trading positions using a binary classification model.
 - Read the Medium article (coming soon!)
 - Try the [web app demo](https://five-minute-midas.herokuapp.com/)
-<img src="data/demo/demo.gif" width="50%" height="50%">
+<img src="data/demo/demo.gif" width="50%" height="50%" border="25">
 
 ## Features
 - Data collection from Yahoo Finance (SQLite3)
