@@ -6,13 +6,13 @@
 <img src="data/demo/demo.gif" width="50%" height="50%">
 
 ## Features
-- Data collection and storage of price data from Yahoo Finance (SQLite3)
-- Feature engineering; trading indicators (pandas)
+- Data collection from Yahoo Finance (SQLite3)
+- Data transformation, feature engineering (pandas)
 - ML model training, hyperparameter tuning and tracking (scikit-learn, MLflow)
 - ML model deployment: API and web app (Flask, Streamlit)
 
 ## Data Pipeline
-<img src="data/demo/pipeline.png" width="50%" height="50%">
+![](data/demo/pipeline.png)
 
 ## Installation
 - Use **requirements.txt** for the demo.
