@@ -25,3 +25,6 @@
 
 ## Credits
 - Price data extracted with the help of the [yfinance](https://github.com/ranaroussi/yfinance) library, created and maintained by [Ran Aroussi](https://github.com/ranaroussi) and other contributors
+
+## Contact
+[LinkedIn](https://www.linkedin.com/in/michael-ow/)
