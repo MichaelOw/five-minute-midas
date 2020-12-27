@@ -36,8 +36,7 @@ TEXT_TITLE = '''# Five Minute Midas 📈
 ---'''
 TEXT_ADVICE = '\n ### Try changing the **Profit Probability.**'
 TEXT_SYMBOLS_FOUND = '### {} of {} symbols selected.{}\n---'
-TEXT_FIG = '''---
-## {} - {} {}
+TEXT_FIG = '''## {} - {} {}
 #### {} - {}
 {}
 '''
@@ -188,7 +187,6 @@ def get_fig_multi(ls_sym, df_c):
     bar = st.progress(0.0)
     for i in range(n):
         for j in range(3):
-            bar.progress((i*3+j)/(len(ls_sym)))
             pos = (i, j)
             if n==1:
                 pos = j
@@ -204,6 +202,7 @@ def get_fig_multi(ls_sym, df_c):
                 sns.scatterplot(data=df, x='datetime', y='close_div_loss', color='r', ax=axs[pos])
                 sns.scatterplot(data=df, x='datetime', y='close_div_profit', color='lime', ax=axs[pos])
                 axs[pos].set_title(sym, fontsize=20)
+                bar.progress((i*3+j+1)/(len(ls_sym)))
             except:
                 fig.delaxes(axs[pos])
             axs[pos].set(xticks=[])
