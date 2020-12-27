@@ -2,13 +2,13 @@
 ## Overview
 - End-to-end machine learning project: Predicting profitable day trading positions using a binary classification model.
 - Read the Medium article (coming soon!)
-- Try the [web app demo](https://five-minute-midas.herokuapp.com/)
-<img src="data/demo/demo.gif" width="50%" height="50%" border="25">
+- Try the [Web App Demo](https://five-minute-midas.herokuapp.com/)
+<img src="data/demo/demo.gif" width="50%" height="50%">
 
 ## Features
 - Data collection from Yahoo Finance (SQLite3)
 - Data transformation, feature engineering (pandas)
-- ML model training, hyperparameter tuning and tracking (scikit-learn, MLflow)
+- ML model training, tuning and tracking (scikit-learn, MLflow)
 - ML model deployment: API and web app (Flask, Streamlit)
 
 ## Data Pipeline
