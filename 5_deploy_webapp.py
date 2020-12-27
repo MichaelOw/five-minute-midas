@@ -376,8 +376,8 @@ try:
         df_sym = get_df_sym(ls_sym, db)
         df_sym = pd.merge(df_sym, df_proba_sm, how='left', on='sym').sort_values(sort_params, ascending=ascending)
         ls_sym_mod = get_ls_sym_mod(df_sym, sort_params)
-        ls_sym_mod = [TEXT_SELECT_DEFAULT] + ls_sym_mod
-        sym = st.selectbox(TEXT_SELECTBOX, ls_sym_mod, index=0).split()[0]
+        ls_sym_mod = ls_sym_mod + [TEXT_SELECT_DEFAULT]
+        sym = st.selectbox(TEXT_SELECTBOX, ls_sym_mod, index=len(ls_sym_mod)-1).split()[0]
         chart_type = 'single'
         if len(ls_sym) <= 30 and st.button(TEXT_BUTTON3):
             chart_type = 'multi'
