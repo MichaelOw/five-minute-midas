@@ -82,7 +82,7 @@ dt_sort_params = {
 }
 
 @st.cache()
-def get_df_proba_sm():
+def get_predictions_summary():
     global demo
     global f_demo_df_proba_sm
     if demo:
@@ -99,7 +99,7 @@ def get_df_proba_sm():
     return df
 
 @st.cache()
-def get_df_c(ls_sym, time_str):
+def get_predictions(ls_sym, time_str):
     global demo
     global f_demo_df_c
     if demo:
@@ -342,7 +342,7 @@ try:
     if not demo:
         if st.button(TEXT_BUTTON1): caching.clear_cache() # refresh button
     # api call to get proba
-    df_proba_sm = get_df_proba_sm()
+    df_proba_sm = get_predictions_summary()
     date_str = df_proba_sm['datetime_last'].astype('str').to_list()[0][:10]
     empty_slot1.write(TEXT_TITLE.format(date_str))
     # filter params
@@ -385,7 +385,7 @@ try:
         if chart_type == 'multi':
             # chart multi
             st.write(TEXT_FIG_MULTI)
-            df_c = get_df_c(ls_sym, time_str)
+            df_c = get_predictions(ls_sym, time_str)
             fig = get_fig_multi(ls_sym, df_c)
             st.pyplot(fig)
             # explain
@@ -394,7 +394,7 @@ try:
         elif chart_type == 'single' and sym != TEXT_SELECT_DEFAULT.split()[0]:
             # chart single
             dt_sym = df_sym[df_sym['sym']==sym].reset_index().to_dict('index')[0]
-            df_c = get_df_c([sym], time_str)
+            df_c = get_predictions([sym], time_str)
             pchange_str = get_pchange_str(df_c)
             fig = get_fig(df_c)
             st.write(TEXT_FIG.format(
