@@ -134,6 +134,7 @@ def get_fig(df_c):
         fig (pyplot.figure)
     '''
     df = df_c.copy()
+    bar = st.progress(0.0)
     # new columns
     if 'proba' not in df.columns: df['proba'] = -1
     df['proba'] = df['proba'].fillna(0)
@@ -147,10 +148,12 @@ def get_fig(df_c):
     # top plot - price line plot
     sns.lineplot(data=df, x='period', y='close', ax=axs[0])
     sns.lineplot(data=df, x='period', y='vwap', color='r', ax=axs[0])
+    bar.progress(0.33)
     sns.scatterplot(data=df, x='period', y='close_div', color='gold', ax=axs[0])
     sns.scatterplot(data=df, x='period', y='close_div_loss', color='r', ax=axs[0])
     sns.scatterplot(data=df, x='period', y='close_div_profit', color='lime', ax=axs[0])
     # top plot - profit proba labels
+    bar.progress(0.66)
     for i, point in df.iterrows():
         x = point['period']
         y = df['close'].min() #point['close'] * 0.99
@@ -162,6 +165,7 @@ def get_fig(df_c):
         if i == df.shape[0]-1:
             axs[0].text(x, close, str(round(close, 2)), fontsize=9) # prices at end of line
     # bottom plot - rsi14 line plot
+    bar.progress(1.0)
     sns.lineplot(data=df, x='period', y='rsi14', color='k', ax=axs[1])
     axs[1].axhline(y=30, color='g')
     axs[1].axhline(y=70, color='darkorange')
@@ -173,6 +177,7 @@ def get_fig(df_c):
         ax.set_xticks(ax.get_xticks()[::len(ax.get_xticks())//10+1])
         for tick in ax.get_xticklabels():
             tick.set_rotation(45)
+    bar.empty()
     return fig
 
 def get_fig_multi(ls_sym, df_c):
@@ -209,6 +214,7 @@ def get_fig_multi(ls_sym, df_c):
             axs[pos].set(xlabel=None)
             axs[pos].set(yticks=[])
             axs[pos].set(ylabel=None)
+    bar.empty()
     return fig
 
 def get_df_curr_profit(ls_sym_entry):
