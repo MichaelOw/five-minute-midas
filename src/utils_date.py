@@ -90,29 +90,3 @@ def get_ls_date_str_from_db(start, end, db):
     ls_date_str = pd.read_sql(q, db.conn)['date'].to_list()
     ls_date_str = [x for x in ls_date_str if start<=x<=end]
     return ls_date_str
-
-############
-# obsolete #
-############
-def get_ls_target_date_str(start_str, end_str=None):
-    '''Get a list of all the date strings between start_str and end_str/today (Inclusive).
-    Exclude all weekends and holidays.
-    If no end_str provided, list will only contain start_str
-    Args:
-        start_str (str): starting date string
-        end_str (str): ending date string, 
-    Returns:
-        ls_target_date_str (List of str)
-    '''
-    if not end_str:
-        return [start_str]
-    assert end_str>=start_str, 'start_str is after end_str!'
-    count=0
-    temp_str = ''
-    ls_target_date_str = []
-    while temp_str!=end_str and count<1000:
-        temp_str = add_days(start_str, count)
-        if is_weekday(temp_str) and temp_str not in ls_d_str_holiday:
-            ls_target_date_str.append(temp_str)
-        count+=1
-    return ls_target_date_str

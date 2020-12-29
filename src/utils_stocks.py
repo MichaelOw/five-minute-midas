@@ -365,28 +365,3 @@ def get_curr_price(sym):
     df = yf.download(sym, period='1d', interval="1m", progress=0).reset_index()
     curr_price = df['Adj Close'].to_list()[-1]
     return curr_price
-
-############
-# obsolete #
-############
-def get_yfinance_df(sym, start_str, end_str):
-    '''Returns yfinance 1 minute interval stock price dataframe with following changes:
-        - Timezone removed
-        - Various columns renamed
-    Args:
-        sym (str): Stock ticker e.g. 'BYND'
-        start_str (str): Date string value e.g. '2020-05-22'
-        end_str (str): Date string value e.g. '2020-05-22'
-    Returns:
-        df (pandas.Dataframe)
-    '''
-    with suppress_stdout():
-        df = yf.download(sym, start=start_str, end=end_str, interval='1m', prepost = False, progress=0).reset_index()
-    df['Datetime'] = df['Datetime'].dt.tz_convert(None) + pd.Timedelta(hours=-4) #remove timezone
-    df = df.rename(columns={'Adj Close':'adj_close',
-                               'Datetime':'datetime',
-                               'Open':'open',
-                               'High':'high',
-                               'Low':'low',
-                               'Volume':'volume'})
-    return df
