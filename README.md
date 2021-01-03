@@ -2,7 +2,7 @@
 ## Overview
 - Predicting profitable day trading positions by fitting a random forest classifier on historical minute-level price data
 - Independent end-to-end machine learning project, from data collection to model deployment
-- Read the Medium article (coming soon!)
+- Read the [Medium article](https://michael-ow.medium.com/how-i-used-a-random-forest-classifier-to-day-trade-for-2-months-part-i-9c00d96d254c)!
 - Try the [Web App Demo](https://five-minute-midas.herokuapp.com/)!
 <img src="data/demo/demo.gif" width="50%" height="50%">
 
