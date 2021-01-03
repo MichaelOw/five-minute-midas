@@ -1,6 +1,7 @@
 # Five Minute Midas
 ## Overview
-- Independent End-to-End Machine Learning Project: Predicting profitable day trading positions using a binary classification model.
+- Predicting profitable day trading positions using a binary classification model
+- Independent End-to-End Machine Learning Project
 - Read the Medium article (coming soon!)
 - Try the [Web App Demo](https://five-minute-midas.herokuapp.com/)
 <img src="data/demo/demo.gif" width="50%" height="50%">
