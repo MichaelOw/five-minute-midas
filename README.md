@@ -1,7 +1,7 @@
 # Five Minute Midas
 ## Overview
-- Predicting profitable day trading positions by fitting a decision tree classifier on historical minute-level price data.
-- Independent End-to-End Machine Learning Project
+- Predicting profitable day trading positions by fitting a random forest classifier on historical minute-level price data
+- Independent end-to-end machine learning project, from data collection to model deployment
 - Read the Medium article (coming soon!)
 - Try the [Web App Demo](https://five-minute-midas.herokuapp.com/)!
 <img src="data/demo/demo.gif" width="50%" height="50%">
