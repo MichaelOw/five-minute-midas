@@ -1,6 +1,6 @@
 # Five Minute Midas
 ## Overview
-- Predicting profitable day trading positions using a binary classification model
+- Predicting profitable day trading positions using historical price data
 - Independent End-to-End Machine Learning Project
 - Read the Medium article (coming soon!)
 - Try the [Web App Demo](https://five-minute-midas.herokuapp.com/)
