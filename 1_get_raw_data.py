@@ -71,7 +71,7 @@ def get_df_prices_m(ls_sym, ls_date_str):
         except Exception as e:
             dt_errors[sym] = f'Error: {sym}, {type(e).__name__}: {str(e)}'
     [print(f'{x} - {dt_errors[x]}') for x in dt_errors]
-    print('Errors: {}/{} {:.3f})}'.format(len(dt_errors)), len(ls_sym), len(dt_errors)/len(ls_sym))
+    print('Errors: {}/{} {:.3f})}'.format(len(dt_errors), len(ls_sym), len(dt_errors)/len(ls_sym)))
     df_prices_m = pd.concat(ls_df)
     return df_prices_m
 
@@ -167,7 +167,7 @@ if ls_sym:
     # print errors
     if dt_errors:
         [print(f'{x} - {dt_errors[x]}') for x in dt_errors]
-        print('Errors: {}/{} {:.3f})}'.format(len(dt_errors)), len(ls_sym), len(dt_errors)/len(ls_sym))
+        print('Errors: {}/{} {:.3f})}'.format(len(dt_errors), len(ls_sym), len(dt_errors)/len(ls_sym)))
     # remove duplicates
     db_remove_dups_stocks(db)
 beeps(1)
@@ -255,7 +255,7 @@ if not df.empty:
     if ls_df:
         # load
         [print(f'{x} - {dt_errors[x]}') for x in dt_errors]
-        print('Errors: {}/{} {:.3f})}'.format(len(dt_errors)), len(ls_sym), len(dt_errors)/len(ls_sym))
+        print('Errors: {}/{} {:.3f})}'.format(len(dt_errors), len(ls_sym), len(dt_errors)/len(ls_sym)))
         df = pd.concat(ls_df)
         df.to_sql('prices_d', db.conn, if_exists='append', index=0)
         db_remove_dups_prices_d(db, max_date_str)
