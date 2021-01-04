@@ -1,5 +1,5 @@
 '''
-💹💰💷💶💴💵💸🤖👩‍💻🧑‍💻👨‍💻📉📈📊
+💹💰💷💶💴💵💸🤖👩‍💻🧑‍💻👨‍💻📉📈📊📰
 '''
 import os
 import time
@@ -69,9 +69,9 @@ TEXT_SIDEBAR_BUTTON = 'Show Current Profits'
 TEXT_SIDEBAR_WARN_DEMO = 'Feature disabled for demo.'
 TEXT_SIDEBAR_ERROR = 'Empty or invalid input.'
 TEXT_SIDEBAR_INFO = '''### Information
-- See code: [GitHub](https://github.com/MichaelOw/five-minute-midas)
-- Developer: [Michael](https://www.linkedin.com/in/michael-ow/)
-- Read article: Coming soon!
+- 💻 See code: [GitHub](https://github.com/MichaelOw/five-minute-midas)
+- 🧑 Developer: [Michael](https://www.linkedin.com/in/michael-ow/)
+- 📰 Read article: [Medium](https://michael-ow.medium.com/how-i-used-a-random-forest-classifier-to-day-trade-for-2-months-part-i-9c00d96d254c)
 '''
 DATI_OLD = '19930417_0000'
 dt_sort_params = {
@@ -363,7 +363,6 @@ try:
         dati_target_str = DATI_OLD
     else:
         past_mins = past_mins.split()[0]
-        past_mins
         dati_target_str = (datetime.datetime.now(tz=pytz.timezone('US/Eastern'))+datetime.timedelta(minutes=-int(past_mins))).strftime('%Y%m%d_%H%M')
     # generate sym multiselect
     index = ((df_proba_sm['proba_last']>=tup_proba_last[0])
