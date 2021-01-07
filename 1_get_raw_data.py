@@ -16,9 +16,8 @@ from src.utils_stocks import suppress_stdout
 from src.utils_general import db_remove_dups_stocks
 from src.utils_general import db_remove_dups_prices_m
 from src.utils_general import db_remove_dups_prices_d
-dir_db = os.path.join(os.getcwd(), 'data', 'db')
-dir_db_demo = os.path.join(os.getcwd(), 'data', 'demo')
-
+DIR_DB = os.path.join(os.getcwd(), 'data', 'db')
+DIR_DB_DEMO = os.path.join(os.getcwd(), 'data', 'demo')
 ERROR_UNIQUE_DATES = 'Skip: Insufficient unique dates ({} less than {})'
 ERROR_CANDLES_PER_DAY = 'Skip: Insufficient candles per day ({} less than {})'
 ERROR_EXCEPTION = 'Error: Exception found ({}: {})'
@@ -121,8 +120,8 @@ ls_init_str = [
         ,datetime_update TEXT)''',
 ]
 
-db = DataBase(ls_init_str, dir_db)
-db_demo = DataBase(ls_init_str, dir_db_demo)
+db = DataBase(ls_init_str, DIR_DB)
+db_demo = DataBase(ls_init_str, DIR_DB_DEMO)
 
 #################
 # Update stocks #
