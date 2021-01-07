@@ -365,3 +365,36 @@ def get_curr_price(sym):
     df = yf.download(sym, period='1d', interval="1m", progress=0).reset_index()
     curr_price = df['Adj Close'].to_list()[-1]
     return curr_price
+
+def get_df_info(sym):
+    '''Returns dataframe containing general info about input symbol
+    Args:
+        sym (str): e.g.  BYND
+    Returns:
+        df_info (pandas.DataFrame)
+            sym (str)
+            long_name (str)
+            sec (str)
+            ind (str)
+            quote_type (str)
+            fund_family (str)
+            summary (str)
+            timestamp (datetime)
+    '''
+    dt_info = yf.Ticker(sym).info
+    dt_info['timestamp'] = datetime.datetime.now()
+    dt_info['sector'] = dt_info.get('sector')
+    dt_col = {
+        'symbol':'sym',
+        'longName':'long_name',
+        'sector':'sec',
+        'industry':'ind',
+        'quoteType':'quote_type',
+        'fundFamily':'fund_family',
+        'longBusinessSummary':'summary',
+        'timestamp':'timestamp',
+    }
+    dt_info = {key:dt_info.get(key) for key in dt_col}
+    df_info = pd.DataFrame([dt_info])
+    df_info = df_info.rename(columns=dt_col)
+    return df_info

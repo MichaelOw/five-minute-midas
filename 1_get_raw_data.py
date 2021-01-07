@@ -10,6 +10,7 @@ from src.db import DataBase
 from src.utils_beeps import beeps
 from src.utils_date import add_days
 from src.utils_stocks import get_ls_sym
+from src.utils_stocks import get_df_info
 from src.utils_stocks import get_df_prices
 from src.utils_stocks import suppress_stdout
 from src.utils_general import db_remove_dups_stocks
@@ -18,43 +19,26 @@ from src.utils_general import db_remove_dups_prices_d
 dir_db = os.path.join(os.getcwd(), 'data', 'db')
 dir_db_demo = os.path.join(os.getcwd(), 'data', 'demo')
 
-###############################
-# Initialize functions and db #
-###############################
-def get_df_info(sym):
-    '''Returns dataframe containing general info about input symbol
-    Args:
-        sym (str): e.g.  BYND
-    Returns:
-        df_info (pandas.DataFrame)
-    '''
-    dt_info = yf.Ticker(sym).info
-    dt_info['timestamp'] = datetime.datetime.now()
-    dt_info['sector'] = dt_info.get('sector')
-    dt_col = {
-        'symbol':'sym',
-        'longName':'long_name',
-        'sector':'sec',
-        'industry':'ind',
-        'quoteType':'quote_type',
-        'fundFamily':'fund_family',
-        'longBusinessSummary':'summary',
-        'timestamp':'timestamp',
-    }
-    dt_info = {key:dt_info.get(key) for key in dt_col}
-    df_info = pd.DataFrame([dt_info])
-    df_info = df_info.rename(columns=dt_col)
-    return df_info
+ERROR_UNIQUE_DATES = 'Skip: Insufficient unique dates ({} less than {})'
+ERROR_CANDLES_PER_DAY = 'Skip: Insufficient candles per day ({} less than {})'
+ERROR_EXCEPTION = 'Error: Exception found ({}: {})'
+ERROR_SUMMARY = '{} - {}'
+ERROR_PCT = 'Errors: {}/{} {:.3f}'
+MSG_PRICES_M_1 = '\n2. Update prices_m'
+MSG_PRICES_M_2 = 'Extracing prices in {}'
+MSG_PRICES_D_1 = '\n3. Update prices_d'
+MSG_PRICES_D_2 = 'Extracting from {} plus 1, to {}'
 
-def get_df_prices_m(ls_sym, ls_date_str):
+def get_df_prices_m(ls_sym, ls_date_str, candles_min = 200):
     '''Returns dataframe containing minute-level prices
     of symbols in input list
     Args:
-        ls_sym (List of str): e.g. ['BYND', 'IBM']
+        ls_sym (List of str): e.g. 'BYND'
+        ls_date_str (List of str): e.g. '2020-12-25'
+        candles_min (int): Minimum number of candles per day
     Returns:
         df_prices_m (pandas.DataFrame)
     '''
-    candles_min = 200
     ls_df = []
     dt_errors = {}
     for i, sym in enumerate(tqdm(ls_sym)):
@@ -63,18 +47,22 @@ def get_df_prices_m(ls_sym, ls_date_str):
             len_unique_dates = len(df['datetime'].dt.date.unique())
             len_candles_per_day = df.shape[0]/len_unique_dates
             if len_unique_dates<len(ls_date_str):
-                dt_errors[sym] = f'Skip: Incomplete data {len_unique_dates} less than {len(ls_date_str)}'
+                dt_errors[sym] = ERROR_UNIQUE_DATES.format(len_unique_dates, len(ls_date_str))
             elif len_candles_per_day<candles_min:
-                dt_errors[sym] = f'Skip: Not enough candles per day {len_candles_per_day} less than {candles_min}'
+                dt_errors[sym] = ERROR_CANDLES_PER_DAY.format(len_candles_per_day, candles_min)
             else:
                 ls_df.append(df)
         except Exception as e:
-            dt_errors[sym] = f'Error: {sym}, {type(e).__name__}: {str(e)}'
-    [print(f'{x} - {dt_errors[x]}') for x in dt_errors]
-    print('Errors: {}/{} {:.3f}'.format(len(dt_errors), len(ls_sym), len(dt_errors)/len(ls_sym)))
+            dt_errors[sym] = ERROR_EXCEPTION.format(type(e).__name__, e)
+    if dt_errors:
+        [print(ERROR_SUMMARY.format(sym, dt_errors[sym])) for sym in dt_errors]
+        print(ERROR_PCT.format(len(dt_errors), len(ls_sym), len(dt_errors)/len(ls_sym)))
     df_prices_m = pd.concat(ls_df)
     return df_prices_m
 
+#################
+# Initialize db #
+#################
 ls_init_str = [
     #prices_m
     '''CREATE TABLE IF NOT EXISTS prices_m(
@@ -161,13 +149,13 @@ if ls_sym:
             df_info = get_df_info(sym)
             ls_df.append(df_info)
         except Exception as e:
-            dt_errors[sym] = f'Skipped... ({type(e).__name__}: {str(e)})'
+            dt_errors[sym] = ERROR_EXCEPTION.format(type(e).__name__, e)
             df = pd.DataFrame([{'sym':sym}])
             df.to_sql('stocks_error', db.conn, if_exists='append', index=0)
     # print errors
     if dt_errors:
-        [print(f'{x} - {dt_errors[x]}') for x in dt_errors]
-        print('Errors: {}/{} {:.3f}'.format(len(dt_errors), len(ls_sym), len(dt_errors)/len(ls_sym)))
+        [print(ERROR_SUMMARY.format(sym, dt_errors[sym])) for sym in dt_errors]
+        print(ERROR_PCT.format(len(dt_errors), len(ls_sym), len(dt_errors)/len(ls_sym)))
     # remove duplicates
     db_remove_dups_stocks(db)
 beeps(1)
@@ -175,7 +163,7 @@ beeps(1)
 ###################
 # Update prices_m #
 ###################
-print('\n2. Update prices_m')
+print(MSG_PRICES_M_1)
 # get max date present
 q = '''
     SELECT DATE(MAX(datetime))
@@ -187,25 +175,26 @@ max_date_str = pd.read_sql(q, db.conn).iloc[0,0]
 df = yf.download('IBM', period='1y', interval='1d', progress=0).reset_index()
 df['Date']= df['Date'].astype('str')
 ls_date_str = df[df['Date']>max_date_str]['Date'].to_list()
-assert ls_date_str, 'No dates to extract!'
-print('Extracing prices in ', ls_date_str)
-# get ls_sym
-q = '''
-    SELECT sym
-      FROM stocks
-     WHERE sec IS NOT NULL
-'''
-ls_sym = pd.read_sql(q, db.conn)['sym'].to_list()
-# extract and load
-df_prices_m = get_df_prices_m(ls_sym, ls_date_str)
-if not df_prices_m.empty:
-    df_prices_m.to_sql('prices_m', db.conn, if_exists='append', index=0)
-    db_remove_dups_prices_m(db, ls_date_str[0])
-beeps(1)
+if ls_date_str:
+    print(MSG_PRICES_M_2.format(ls_date_str))
+    # get ls_sym
+    q = '''
+        SELECT sym
+          FROM stocks
+         WHERE sec IS NOT NULL
+    '''
+    ls_sym = pd.read_sql(q, db.conn)['sym'].to_list()
+    # extract and load
+    df_prices_m = get_df_prices_m(ls_sym, ls_date_str)
+    if not df_prices_m.empty:
+        df_prices_m.to_sql('prices_m', db.conn, if_exists='append', index=0)
+        db_remove_dups_prices_m(db, ls_date_str[0])
+    beeps(1)
 
 ###################
 # Update prices_d #
 ###################
+print(MSG_PRICES_D_1)
 # get max date present
 q = '''
     SELECT DATE(MAX(date))
@@ -218,7 +207,7 @@ end = add_days(datetime.datetime.today().strftime('%Y-%m-%d'), 3) #today's date 
 df = yf.download('IBM', start=max_date_str, end=end, interval='1d', progress=0).reset_index()
 df = df[df['Date'].astype('str')>max_date_str]
 if not df.empty:
-    print(f'Extracting from {max_date_str} plus 1, to {end}')
+    print(MSG_PRICES_D_2.format(max_date_str, end))
     # get ls_sym
     q = '''
         SELECT sym
@@ -236,12 +225,9 @@ if not df.empty:
         'Adj Close':'adj_close',
         'Volume':'volume',
     }
-    count = 0
-    count_e = 0
     ls_df = []
     dt_errors = {}
     for i, sym in enumerate(tqdm(ls_sym)):
-        count+=1
         try:
             with suppress_stdout():
                 df = yf.download(sym, period = '1mo', interval='1d', progress=0).reset_index()
@@ -250,12 +236,11 @@ if not df.empty:
             df = df[list(dt_cols.values())]
             ls_df.append(df)
         except Exception as e:
-            dt_errors[sym] = f'Error: {type(e).__name__}: {str(e)}'
-            count_e+=1
+            dt_errors[sym] = ERROR_EXCEPTION.format(type(e).__name__, e)
+    if dt_errors:
+        [print(ERROR_SUMMARY.format(sym, dt_errors[sym])) for sym in dt_errors]
+        print(ERROR_PCT.format(len(dt_errors), len(ls_sym), len(dt_errors)/len(ls_sym)))
     if ls_df:
-        # load
-        [print(f'{x} - {dt_errors[x]}') for x in dt_errors]
-        print('Errors: {}/{} {:.3f}'.format(len(dt_errors), len(ls_sym), len(dt_errors)/len(ls_sym)))
         df = pd.concat(ls_df)
         df.to_sql('prices_d', db.conn, if_exists='append', index=0)
         db_remove_dups_prices_d(db, max_date_str)
