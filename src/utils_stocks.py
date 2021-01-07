@@ -65,12 +65,12 @@ def get_df_prices(sym, start_str, end_str):
             interval='1m',
             progress=0,
             prepost=True).reset_index()
-    is_date_range = (df['Datetime'].dt.date.astype('str')>=start_str)
-                    & (df['Datetime'].dt.date.astype('str')<=end_str)
+    is_date_range = ((df['Datetime'].dt.date.astype('str')>=start_str)
+                     &(df['Datetime'].dt.date.astype('str')<=end_str))
     df = df[is_date_range]
     df['Datetime'] = df['Datetime'].dt.tz_localize(None) #remove timezone
-    is_reg_hours = (df['Datetime'].dt.time.astype('str')>='09:30:00')
-                    & (df['Datetime'].dt.time.astype('str')<='15:59:00')
+    is_reg_hours = ((df['Datetime'].dt.time.astype('str')>='09:30:00')
+                    &(df['Datetime'].dt.time.astype('str')<='15:59:00'))
     df['is_reg_hours'] = np.where(is_reg_hours, 1, 0)
     df['sym'] = sym
     df = df.rename(columns={

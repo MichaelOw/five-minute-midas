@@ -7,35 +7,34 @@ import traceback
 import threading
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 from src.db import DataBase
 from flask import Flask, request
 from src.utils_stocks import get_df_c
 from src.utils_general import timer_dec
-dir_db = os.path.join(os.getcwd(), 'data', 'db')
-dir_models = os.path.join(os.getcwd(), 'data', 'models')
+DIR_DB = os.path.join(os.getcwd(), 'data', 'db')
+DIR_MODELS = os.path.join(os.getcwd(), 'data', 'models')
+ERROR_EXCEPTION = 'Error: Exception found ({}: {})'
+ERROR_SUMMARY = '{} - {}'
+ERROR_PCT = 'Errors: {}/{} {:.3f}'
 MSG_RUN_COMPLETE = 'Update complete, waiting for {} seconds till next update...'
 
 # user parameters
 buffer_seconds = 5*60
-date_str = '2021-01-04'
+date_str = '2021-01-07'
 live_data = 1
 f_model = 'tup_model_2020-12-06_1640.p'
 sym_limit = None
-
 # load model
-print('Loading...', end = '')
-with open(os.path.join(dir_models, f_model), 'rb') as f:
+with open(os.path.join(DIR_MODELS, f_model), 'rb') as f:
     tup_model = pickle.load(f)
-
 # api
 app = Flask(__name__)
-print('Done!')
 
 @app.route('/df_proba', methods=['POST'])
 def api_get_df_proba():
     '''API that returns all predictions in dataframe in JSON'''
-    global dir_db
-    db = DataBase([], dir_db)
+    db = DataBase([], DIR_DB)
     q = '''
     SELECT *
       FROM proba
@@ -52,8 +51,7 @@ def api_get_df_proba():
 @app.route('/df_proba_sm', methods=['POST'])
 def api_get_df_proba_sm():
     '''API that returns prediction summary in dataframe in JSON'''
-    global dir_db
-    db = DataBase([], dir_db)
+    db = DataBase([], DIR_DB)
     q = '''
     SELECT *
       FROM proba
@@ -81,11 +79,10 @@ def api_get_df_proba_sm():
 @app.route('/df_c', methods=['POST'])
 def api_get_df_c():
     '''API that returns full price dataframe in JSON for input symbol(s)'''
-    global dir_db
     global tup_model
     global date_str
     global live_data
-    db = DataBase([], dir_db)
+    db = DataBase([], DIR_DB)
     j_data = request.get_json()
     ls_sym = json.loads(j_data)['ls_sym']
     time_str = json.loads(j_data)['time_str']
@@ -193,35 +190,37 @@ def update_predictions():
     '''Runs an iteration of model predictions on
     selected symbols and saves output in database
     '''
-    global dir_db
     global tup_model
     global j_df_proba
     global date_str
     global live_data
     global sym_limit
     global buffer_seconds
-    db = DataBase([], dir_db)
+    db = DataBase([], DIR_DB)
     ls_df_proba = []
     target_profit = 0.011
     target_loss = -0.031
     df_sym = get_df_sym_filter(db)
     df_sym = df_sym.iloc[:sym_limit]
     while 1:
-        for i, tup in df_sym.iterrows():
-            if i%100==0: print(i, df_sym.shape[0])
+        dt_errors = {}
+        for i, tup in tqdm(df_sym.iterrows(), total=df_sym.shape[0]):
             sym = tup['sym']
             try:
                 df_c = get_df_c(sym, date_str, live_data, db, target_profit, target_loss)
                 df_proba = get_df_proba(df_c, tup_model)
                 if not df_proba.empty: df_proba.to_sql('proba', db.conn, if_exists='append', index=0)
             except Exception as e:
-                print(sym, type(e).__name__, e.args) #traceback.print_exc()
-
+                dt_errors[sym] = ERROR_EXCEPTION.format(type(e).__name__, e)#traceback.print_exc()
+        if dt_errors:
+            num_runs = df_sym.shape[0]
+            [print(ERROR_SUMMARY.format(sym, dt_errors[sym])) for sym in dt_errors]
+            print(ERROR_PCT.format(len(dt_errors), num_runs, len(dt_errors)/num_runs))
         print(MSG_RUN_COMPLETE.format(buffer_seconds))
         time.sleep(buffer_seconds)
 
 if __name__ == '__main__':
-    db = DataBase([], dir_db)
+    db = DataBase([], DIR_DB)
     db.execute('DELETE FROM proba')
     x = threading.Thread(target=update_predictions, daemon=True)
     x.start()

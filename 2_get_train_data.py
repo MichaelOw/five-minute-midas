@@ -1,5 +1,3 @@
-date_start = '2020-12-21' #'2020-06-23'
-
 import os
 import json
 import pickle
@@ -18,6 +16,9 @@ from src.utils_general import plot_divergences
 from src.utils_date import get_ls_date_str_from_db
 DIR_DB = os.path.join(os.getcwd(), 'data', 'db')
 DIR_TRAIN = os.path.join(os.getcwd(), 'data', 'train')
+ERROR_EXCEPTION = 'Error: Exception found ({}: {})'
+ERROR_SUMMARY = '{} - {}'
+ERROR_PCT = 'Errors: {}/{} {:.3f}'
 MSG_DATE_RANGE = 'Creating df_train for date range: {} to {}'
 MSG_SAVED = '{} saved!'
 
@@ -26,6 +27,7 @@ db = DataBase([], DIR_DB)
 live_data = 0
 target_profit = 0.011
 target_loss = -0.031
+date_start = '2020-12-21' #'2020-06-23'
 ls_date_str = get_ls_date_str_from_db(date_start, '2022-01-01', db) 
 print(MSG_DATE_RANGE.format(ls_date_str[0], ls_date_str[-1]))
 # extract and transform
