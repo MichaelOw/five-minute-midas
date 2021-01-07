@@ -13,13 +13,14 @@ from src.utils_stocks import get_df_c
 from src.utils_general import timer_dec
 dir_db = os.path.join(os.getcwd(), 'data', 'db')
 dir_models = os.path.join(os.getcwd(), 'data', 'models')
+MSG_RUN_COMPLETE = 'Update complete, waiting for {} seconds till next update...'
 
 # user parameters
-buffer_seconds = 100000
-date_str = '2020-12-17'
-live_data = 0
+buffer_seconds = 5*60
+date_str = '2021-01-04'
+live_data = 1
 f_model = 'tup_model_2020-12-06_1640.p'
-sym_limit = 100 #None
+sym_limit = None
 
 # load model
 print('Loading...', end = '')
@@ -215,7 +216,8 @@ def update_predictions():
                 if not df_proba.empty: df_proba.to_sql('proba', db.conn, if_exists='append', index=0)
             except Exception as e:
                 print(sym, type(e).__name__, e.args) #traceback.print_exc()
-        print(f'Update complete, waiting for {buffer_seconds} seconds till next update...')
+
+        print(MSG_RUN_COMPLETE.format(buffer_seconds))
         time.sleep(buffer_seconds)
 
 if __name__ == '__main__':

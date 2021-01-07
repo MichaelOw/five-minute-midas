@@ -10,6 +10,11 @@ from src.utils_date import add_days
 from src.utils_date import prev_weekday
 #from pandas_datareader.nasdaq_trader import get_nasdaq_symbols
 
+ERROR_NO_MINUTE_DATA_YTD = 'Skip: Missing minute-level data for yesterday'
+ERROR_NO_MINUTE_DATA_TDY = 'Skip: Missing minute-level data for today'
+ERROR_CANDLES_PER_DAY = 'Skip: Insufficient candles today ({} less than {})'
+ERROR_NULL_COL = 'Skip: NULL value in df_i columns ({})'
+
 @contextmanager
 def suppress_stdout():
     with open(os.devnull, "w") as devnull:
@@ -39,11 +44,11 @@ def get_ls_sym():
             if col in ['ACT Symbol', 'Symbol']: df['sym'] = df[col]
         ls_sym+=df[df['sym'].str.len()<=5]['sym'].to_list()
     ls_sym = list(set(ls_sym)) # remove duplicates
-    assert ls_sym, 'ls_sym is empty!'
     return ls_sym
 
 def get_df_prices(sym, start_str, end_str):
-    '''Return dataframe with minute-level stock price data from start date to end date (inclusive).
+    '''Return dataframe with minute-level stock price data
+    from start date to end date (inclusive).
     Args:
         sym (str): Ticker symbol e.g. 'BYND'
         start_str (str): Start date string e.g. '2020-07-18'
@@ -54,12 +59,18 @@ def get_df_prices(sym, start_str, end_str):
     assert start_str <= end_str
     end_str_mod=add_days(end_str, 3)
     with suppress_stdout():
-        df = yf.download(sym, start=start_str, end=end_str_mod, interval='1m', progress=0, prepost=True).reset_index()
-    is_date_range = (df['Datetime'].dt.date.astype('str')>=start_str) & (df['Datetime'].dt.date.astype('str')<=end_str)
+        df = yf.download(sym,
+            start=start_str,
+            end=end_str_mod,
+            interval='1m',
+            progress=0,
+            prepost=True).reset_index()
+    is_date_range = (df['Datetime'].dt.date.astype('str')>=start_str)
+                    & (df['Datetime'].dt.date.astype('str')<=end_str)
     df = df[is_date_range]
-    #df['Datetime'] = df['Datetime'].dt.tz_convert(None) + pd.Timedelta(hours=-4) #remove timezone
     df['Datetime'] = df['Datetime'].dt.tz_localize(None) #remove timezone
-    is_reg_hours = (df['Datetime'].dt.time.astype('str')>='09:30:00') & (df['Datetime'].dt.time.astype('str')<='15:59:00')
+    is_reg_hours = (df['Datetime'].dt.time.astype('str')>='09:30:00')
+                    & (df['Datetime'].dt.time.astype('str')<='15:59:00')
     df['is_reg_hours'] = np.where(is_reg_hours, 1, 0)
     df['sym'] = sym
     df = df.rename(columns={
@@ -86,8 +97,8 @@ def add_rsi(df, rsi_period):
     '''Returns dataframe with additional columns:
         rsi (float)
     Args:
-        df (pandas.DataFrame): Dataframe with below columns. Must be index sorted by datetime:
-            adj_close
+        df (pandas.DataFrame): Must be index sorted by datetime:
+            adj_close (float)
         rsi_period (int): Number of rsi periods
     Returns:
         df (pandas.DataFrame)
@@ -122,12 +133,17 @@ def add_vwap(df):
     df['vwap_var'] = (df['adj_close']/df['vwap'])-1
     return df
 
-def get_df_i(sym, date_str, live_data, db):
+def get_df_i(sym, date_str, live_data, db, num_candles_min = 200):
     start_str = prev_weekday(date_str) #start 1 day early to get prev day data for rsi etc
     end_str = add_days(date_str, 3) #extend end date string due to bug
     if live_data:
         with suppress_stdout():
-            df = yf.download(sym, start=start_str, end=end_str, interval='1m', prepost = False, progress=0).reset_index()
+            df = yf.download(sym,
+                start=start_str,
+                end=end_str,
+                interval='1m',
+                prepost = False,
+                progress=0).reset_index()
         df['Datetime'] = df['Datetime'].dt.tz_localize(None) #remove timezone
         df = df.rename(columns={'Adj Close':'adj_close',
                                    'Datetime':'datetime',
@@ -148,9 +164,13 @@ def get_df_i(sym, date_str, live_data, db):
         df = pd.read_sql(q, db.conn)
         df['datetime'] = pd.to_datetime(df['datetime'])
     df['date_str'] = df['datetime'].dt.date.astype('str')
-    if df[df['date_str']==start_str].empty: raise Exception('No intraday(minute interval) data for previous day!')
-    if df[df['date_str']==date_str].empty: raise Exception('No intraday(minute interval) data for today!')
-    if df[df['date_str']==date_str].shape[0]<200 and not live_data: raise Exception(f'Less than 200 Data points for today ({df[df["date_str"]==date_str].shape[0]}), skipping!')
+    if df[df['date_str']==start_str].empty:
+        raise Exception(ERROR_NO_MINUTE_DATA_YTD)
+    if df[df['date_str']==date_str].empty:
+        raise Exception(ERROR_NO_MINUTE_DATA_TDY)
+    num_candles_today = df[df['date_str']==date_str].shape[0]
+    if num_candles_today<num_candles_min and not live_data:
+        raise Exception(''.format(num_candles_today, num_candles_min))
     df = df[df['date_str']<=date_str]
     df = df[df['date_str']>=start_str]
     df['sma9'] = df['adj_close'].rolling(9).mean()
@@ -166,9 +186,6 @@ def get_df_i(sym, date_str, live_data, db):
     df['volume34'] = df['volume'].rolling(34).mean()
     df['volume14_34_var'] = (df['volume14']/df['volume34'])-1
     df['volume14_34_var'] = df['volume14_34_var'].fillna(0.0)
-    #df['sma90'] = df['adj_close'].rolling(90).mean()
-    #df['sma180'] = df['adj_close'].rolling(180).mean()
-    #df['sma180'] = df['sma180'].fillna(df['sma90'])
     prev_close = df[df['date_str']==start_str]['adj_close'].to_list()[-1]
     prev_floor = df[df['date_str']==start_str]['adj_close'].min()
     prev_ceil = df[df['date_str']==start_str]['adj_close'].max()
@@ -206,8 +223,7 @@ def get_df_i(sym, date_str, live_data, db):
     df = df[ls_col]
     ls_col_na = df.columns[df.isna().any()].tolist()
     if ls_col_na:
-        #df.to_csv('temp.csv')
-        raise Exception(f'Null found in df_i columns: {ls_col_na}, skipping!')
+        raise Exception(ERROR_NULL_COL.format(ls_col_na))
     return df.reset_index(drop=1)
 
 def add_peaks_valleys(df, order=5):
@@ -362,7 +378,7 @@ def get_curr_price(sym):
     Returns:
         curr_price (float)
     '''
-    df = yf.download(sym, period='1d', interval="1m", progress=0).reset_index()
+    df = yf.download(sym, period='1d', interval='1m', progress=0).reset_index()
     curr_price = df['Adj Close'].to_list()[-1]
     return curr_price
 
