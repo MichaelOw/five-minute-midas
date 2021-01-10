@@ -17,6 +17,7 @@ ERROR_NULL_COL = 'Skip: NULL value in df_i columns ({})'
 
 @contextmanager
 def suppress_stdout():
+    '''Decorator to supress function output to sys.stdout'''
     with open(os.devnull, "w") as devnull:
         old_stdout = sys.stdout
         sys.stdout = devnull
@@ -134,6 +135,17 @@ def add_vwap(df):
     return df
 
 def get_df_i(sym, date_str, live_data, db, num_candles_min = 200):
+    '''Returns interim dataframe with price data and
+    trading indicators for input symbol and date
+    Args:
+        sym (str)
+        date_str  (str)
+        live_data (int)
+        db (Database object)
+        num_candles_min (int)
+    Returns:
+        df_i (pandas.Dataframe)
+    '''
     start_str = prev_weekday(date_str) #start 1 day early to get prev day data for rsi etc
     end_str = add_days(date_str, 3) #extend end date string due to bug
     if live_data:

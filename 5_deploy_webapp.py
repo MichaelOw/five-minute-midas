@@ -30,6 +30,8 @@ dir_db = os.path.join(os.getcwd(), 'data', 'db')
 if demo: dir_db = os.path.join(os.getcwd(), 'data', 'demo')
 db = DataBase([], dir_db=dir_db)
 # system strings
+ERROR_EXCEPTION = '{} - {}'
+ERROR_CONNECTION = 'Connection error! Try again in a few seconds.'
 TEXT_PAGE_TITLE = 'Five Minute Midas'
 TEXT_TITLE = '''# Five Minute Midas 📈
 ### Predicting profitable day trading positions for *{}*.
@@ -83,6 +85,10 @@ dt_sort_params = {
 
 @st.cache()
 def get_predictions_summary():
+    '''Makes API call to get and return dataframe containing predictions summary
+    Returns:
+        df (pandas.Dataframe)
+    '''
     global demo
     global f_demo_df_proba_sm
     if demo:
@@ -100,23 +106,39 @@ def get_predictions_summary():
 
 @st.cache()
 def get_predictions(ls_sym, time_str):
+    '''Makes API call to get and return dataframe containing all prices, indicators
+    and predictions; Based on input list of symbol and time cutoff
+    Args:
+        ls_sym (List of str)
+        time_str (str)
+    Returns:
+        df_c (pandas.Dataframe)
+    '''
     global demo
     global f_demo_df_c
     if demo:
-        df = pd.read_parquet(f_demo_df_c)
-        index = (df['sym'].isin(ls_sym))&(df['datetime'].dt.strftime('%H%M')<=time_str)
-        df = df[index]
-        return df
+        df_c = pd.read_parquet(f_demo_df_c)
+        index = (df_c['sym'].isin(ls_sym))&(df_c['datetime'].dt.strftime('%H%M')<=time_str)
+        df_c = df_c[index]
+        return df_c
     dt_sym = {'ls_sym':ls_sym, 'time_str':time_str}
     url = 'http://localhost:5000/df_c'
     headers = {'content-type': 'application/json', 'Accept-Charset': 'UTF-8'}
     r = requests.post(url, json=json.dumps(dt_sym), headers=headers)
     data = json.loads(r.text)
-    df = pd.DataFrame(**data)
-    df['datetime'] = pd.to_datetime(df['datetime'], unit='ms')
-    return df
+    df_c = pd.DataFrame(**data)
+    df_c['datetime'] = pd.to_datetime(df_c['datetime'], unit='ms')
+    return df_c
 
 def get_df_sym(ls_sym, db):
+    '''Returns dataframe of symbols with additional
+    information, based on input list of symbols
+    Args:
+        ls_sym (List of str)
+        db (Database object)
+    Returns:
+        df_sym (pandas.Dataframe)
+    '''
     if len(ls_sym)==1: ls_sym = ls_sym + ls_sym #tuples with one element have incompatible trailing comma
     q='''
         SELECT sym, long_name, sec, ind, summary
@@ -321,7 +343,7 @@ def get_pchange_str(df_c):
 # UI Generation
 try:
     # config and columns
-    st.set_page_config(initial_sidebar_state='collapsed', page_title=TEXT_PAGE_TITLE) #layout='wide'
+    st.set_page_config(initial_sidebar_state='collapsed', page_title=TEXT_PAGE_TITLE)
     st.set_option('deprecation.showPyplotGlobalUse', False)
     #c1, c2, c3, c4, c5  = st.beta_columns((1,4,1,4,1))
     # sidebar - get sort params
@@ -421,6 +443,6 @@ try:
             exp_des = st.beta_expander(TEXT_DESCRIPTION)
             exp_des.write(dt_sym['summary'])
 except ConnectionError:
-    st.write(f'Connection error! Try again in a few seconds.')
+    st.write(ERROR_CONNECTION)
 except Exception as e:
-    st.write(f'{type(e).__name__} - {e}')
+    st.write(ERROR_EXCEPTION.format(type(e).__name__, e))

@@ -38,7 +38,7 @@ app = Flask(__name__)
 def api_get_df_proba_sm():
     '''API that returns prediction summary in dataframe in JSON
     Returns:
-        j_df_proba_sm (JSON of pandas.dataframe)
+        j_df_proba_sm (JSON of pandas.Dataframe)
     '''
     db = DataBase([], DIR_DB)
     q = '''
@@ -69,7 +69,7 @@ def api_get_df_proba_sm():
 def api_get_df_c():
     '''API that returns full cooked price dataframe in JSON for input symbol(s)
     Returns:
-        j_df_c (JSON of pandas.dataframe)
+        j_df_c (JSON of pandas.Dataframe)
     '''
     global tup_model
     global date_str
