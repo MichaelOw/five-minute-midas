@@ -15,6 +15,7 @@ from src.utils_general import timer_dec
 DIR_DB = os.path.join(os.getcwd(), 'data', 'db')
 DIR_MODELS = os.path.join(os.getcwd(), 'data', 'models')
 ERROR_EXCEPTION = 'Error: Exception found ({}: {})'
+ERROR_EXCEPTION_SYM = 'Error: Exception found for {} ({}: {})'
 ERROR_SUMMARY = '{} - {}'
 ERROR_PCT = 'Errors: {}/{} {:.3f}'
 MSG_RUN_COMPLETE = 'Update complete, waiting for {} seconds till next update...'
@@ -101,12 +102,11 @@ def api_get_df_c():
             ls_df.append(df)
         df_c = pd.concat(ls_df)
         j_df_c = df_c.to_json(orient='split')
-        db.close()
-        return j_df_c
     except Exception as e:
-        print(sym, type(e).__name__, e.args) #traceback.print_exc()
-        db.close()
-        return pd.DataFrame().to_json(orient='split')
+        print(ERROR_EXCEPTION_SYM.format(sym, type(e).__name__, e.args))
+        j_df_c = pd.DataFrame().to_json(orient='split')
+    db.close()
+    return j_df_c
 
 def get_df_sym_filter(db):
     '''Returns dataframe of stock symbols in
