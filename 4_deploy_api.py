@@ -32,23 +32,6 @@ with open(os.path.join(DIR_MODELS, f_model), 'rb') as f:
 # api
 app = Flask(__name__)
 
-@app.route('/df_proba', methods=['POST'])
-def api_get_df_proba():
-    '''API that returns all predictions in dataframe in JSON'''
-    db = DataBase([], DIR_DB)
-    q = '''
-    SELECT *
-      FROM proba
-     WHERE sym + datetime_update IN
-           (SELECT sym + MAX(datetime_update)
-              FROM proba
-             GROUP BY sym)
-    '''
-    df_proba = pd.read_sql(q, db.conn)
-    j_df_proba = df_proba.to_json(orient='split')
-    db.close()
-    return j_df_proba
-
 @app.route('/df_proba_sm', methods=['POST'])
 def api_get_df_proba_sm():
     '''API that returns prediction summary in dataframe in JSON'''
