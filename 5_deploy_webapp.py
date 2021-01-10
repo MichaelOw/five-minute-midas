@@ -70,7 +70,7 @@ TEXT_SIDEBAR_WARN_DEMO = 'Feature disabled for demo.'
 TEXT_SIDEBAR_ERROR = 'Empty or invalid input.'
 TEXT_SIDEBAR_INFO = '''### Information
 - 💻 See code: [GitHub](https://github.com/MichaelOw/five-minute-midas)
-- 🧑 Developer: [Michael](https://www.linkedin.com/in/michael-ow/)
+- 🤖 Developer: [Michael](https://www.linkedin.com/in/michael-ow/)
 - 📰 Read article: [Medium](https://michael-ow.medium.com/how-i-used-a-random-forest-classifier-to-day-trade-for-2-months-part-i-9c00d96d254c)
 '''
 DATI_OLD = '19930417_0000'
