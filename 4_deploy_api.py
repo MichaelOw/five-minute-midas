@@ -26,6 +26,8 @@ date_str = '2021-01-07'
 live_data = 1
 f_model = 'tup_model_2020-12-06_1640.p'
 sym_limit = None
+target_profit = 0.011
+target_loss = -0.031
 # load model
 with open(os.path.join(DIR_MODELS, f_model), 'rb') as f:
     tup_model = pickle.load(f)
@@ -34,7 +36,10 @@ app = Flask(__name__)
 
 @app.route('/df_proba_sm', methods=['POST'])
 def api_get_df_proba_sm():
-    '''API that returns prediction summary in dataframe in JSON'''
+    '''API that returns prediction summary in dataframe in JSON
+    Returns:
+        j_df_proba_sm (JSON of pandas.dataframe)
+    '''
     db = DataBase([], DIR_DB)
     q = '''
     SELECT *
@@ -62,16 +67,19 @@ def api_get_df_proba_sm():
 
 @app.route('/df_c', methods=['POST'])
 def api_get_df_c():
-    '''API that returns full price dataframe in JSON for input symbol(s)'''
+    '''API that returns full cooked price dataframe in JSON for input symbol(s)
+    Returns:
+        j_df_c (JSON of pandas.dataframe)
+    '''
     global tup_model
     global date_str
     global live_data
+    global target_profit
+    global target_loss
     db = DataBase([], DIR_DB)
     j_data = request.get_json()
     ls_sym = json.loads(j_data)['ls_sym']
     time_str = json.loads(j_data)['time_str']
-    target_profit = 0.011
-    target_loss = -0.031
     try:
         ls_df = []
         for sym in ls_sym:
@@ -79,7 +87,10 @@ def api_get_df_c():
             df = df[df['datetime'].dt.strftime('%H%M')<=time_str]
             df_proba = get_df_proba(df, tup_model)
             if not df_proba.empty:
-                df = pd.merge(df, df_proba[['sym','datetime','proba']], how='left', on=['sym', 'datetime'])
+                df = pd.merge(df
+                    ,df_proba[['sym','datetime','proba']]
+                    ,how='left'
+                    ,on=['sym', 'datetime'])
             else:
                 df['proba'] = None
             ls_df.append(df)
@@ -153,19 +164,22 @@ def get_df_proba(df_c, tup_model):
     q, ls_col, full_pipe = tup_model
     # Remove outliers and non-relevant data 
     df = df_c.query(q).copy()
-    if df.empty: return pd.DataFrame()
-    s_sym = df['sym']
-    s_datetime = df['datetime']
-    s_timestamp = [datetime.datetime.now()]*df.shape[0]
-    df = df[ls_col]
-    arr_proba = full_pipe.predict_proba(df)
-    df_proba = pd.DataFrame({
-        'sym':s_sym,
-        'datetime':s_datetime,
-        'my_index':list(df.index),
-        'proba':arr_proba[:,1],
-        'datetime_update':s_timestamp,
-    })
+    if df.empty:
+        ls_col = ['sym', 'datetime', 'my_index', 'proba', 'datetime_update']
+        df_proba = pd.DataFrame(columns=ls_col)
+    else:
+        s_sym = df['sym']
+        s_datetime = df['datetime']
+        s_timestamp = [datetime.datetime.now()]*df.shape[0]
+        df = df[ls_col]
+        arr_proba = full_pipe.predict_proba(df)
+        df_proba = pd.DataFrame({
+            'sym':s_sym,
+            'datetime':s_datetime,
+            'my_index':list(df.index),
+            'proba':arr_proba[:,1],
+            'datetime_update':s_timestamp,
+        })
     return df_proba
 
 @timer_dec
@@ -179,12 +193,12 @@ def update_predictions():
     global live_data
     global sym_limit
     global buffer_seconds
+    global target_profit
+    global target_loss
     db = DataBase([], DIR_DB)
-    ls_df_proba = []
-    target_profit = 0.011
-    target_loss = -0.031
     df_sym = get_df_sym_filter(db)
     df_sym = df_sym.iloc[:sym_limit]
+    ls_df_proba = []
     while 1:
         dt_errors = {}
         for i, tup in tqdm(df_sym.iterrows(), total=df_sym.shape[0]):
@@ -192,7 +206,8 @@ def update_predictions():
             try:
                 df_c = get_df_c(sym, date_str, live_data, db, target_profit, target_loss)
                 df_proba = get_df_proba(df_c, tup_model)
-                if not df_proba.empty: df_proba.to_sql('proba', db.conn, if_exists='append', index=0)
+                if not df_proba.empty:
+                    df_proba.to_sql('proba', db.conn, if_exists='append', index=0)
             except Exception as e:
                 dt_errors[sym] = ERROR_EXCEPTION.format(type(e).__name__, e)#traceback.print_exc()
         if dt_errors:
