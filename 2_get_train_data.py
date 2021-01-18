@@ -27,7 +27,7 @@ db = DataBase([], DIR_DB)
 live_data = 0
 target_profit = 0.011
 target_loss = -0.031
-date_start = '2020-12-28' #'2020-06-23'
+date_start = '2021-01-11' #'2020-06-23'
 date_end = '2022-01-01'
 ls_date_str = get_ls_date_str_from_db(date_start, date_end, db) 
 print(MSG_DATE_RANGE.format(ls_date_str[0], ls_date_str[-1]))
