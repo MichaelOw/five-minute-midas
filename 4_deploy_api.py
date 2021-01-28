@@ -5,9 +5,11 @@ import pickle
 import datetime
 import traceback
 import threading
+import collections
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from pytz import timezone
 from src.db import DataBase
 from flask import Flask, request
 from src.utils_stocks import get_df_c
@@ -18,16 +20,22 @@ ERROR_EXCEPTION = 'Error: Exception found ({}: {})'
 ERROR_EXCEPTION_SYM = 'Error: Exception found for {} ({}: {})'
 ERROR_SUMMARY = '{} - {}'
 ERROR_PCT = 'Errors: {}/{} {:.3f}'
+MSG_SKIP = 'Skipping these symbols: {}'
 MSG_RUN_COMPLETE = 'Update complete, waiting for {} seconds till next update...'
+MSG_DEFAULT_DATE = 'No date entered, using today date: {}'
+DATE_STR_TDY = (datetime.datetime.now()
+                    .astimezone(timezone('America/New_York'))
+                    .strftime('%Y-%m-%d'))
 
 # user parameters
 buffer_seconds = 5*60
-date_str = '2021-01-07'
+date_str = ''
 live_data = 1
 f_model = 'tup_model_2021-01-18_2321.p'
 sym_limit = None
 target_profit = 0.011
 target_loss = -0.031
+error_threshold = 2
 # load model
 with open(os.path.join(DIR_MODELS, f_model), 'rb') as f:
     tup_model = pickle.load(f)
@@ -62,7 +70,7 @@ def api_get_df_proba_sm():
     df2 = df2[['sym', 'datetime_last', 'proba_last']]
     df_proba_sm = pd.merge(df1, df2, how='left', on='sym')
     j_df_proba_sm = df_proba_sm.to_json(orient='split')
-    db.close()
+    #db.close()
     return j_df_proba_sm
 
 @app.route('/df_c', methods=['POST'])
@@ -99,7 +107,7 @@ def api_get_df_c():
     except Exception as e:
         print(ERROR_EXCEPTION_SYM.format(sym, type(e).__name__, e.args))
         j_df_c = pd.DataFrame().to_json(orient='split')
-    db.close()
+    #db.close()
     return j_df_c
 
 def get_df_sym_filter(db):
@@ -195,25 +203,36 @@ def update_predictions():
     global buffer_seconds
     global target_profit
     global target_loss
+    global error_threshold
+    if not date_str:
+        print(MSG_DEFAULT_DATE.format(DATE_STR_TDY))
+        date_str = DATE_STR_TDY
     db = DataBase([], DIR_DB)
     df_sym = get_df_sym_filter(db)
     df_sym = df_sym.iloc[:sym_limit]
     ls_df_proba = []
+    c_error = collections.Counter()
+    ls_skip = []
     while 1:
-        dt_errors = {}
+        dt_error = {}
         for i, tup in tqdm(df_sym.iterrows(), total=df_sym.shape[0]):
             sym = tup['sym']
+            if sym in ls_skip:
+                continue
             try:
                 df_c = get_df_c(sym, date_str, live_data, db, target_profit, target_loss)
                 df_proba = get_df_proba(df_c, tup_model)
                 if not df_proba.empty:
                     df_proba.to_sql('proba', db.conn, if_exists='append', index=0)
             except Exception as e:
-                dt_errors[sym] = ERROR_EXCEPTION.format(type(e).__name__, e)#traceback.print_exc()
-        if dt_errors:
+                dt_error[sym] = ERROR_EXCEPTION.format(type(e).__name__, e) # traceback.print_exc()
+                c_error.update([sym])
+        if dt_error:
             num_runs = df_sym.shape[0]
-            [print(ERROR_SUMMARY.format(sym, dt_errors[sym])) for sym in dt_errors]
-            print(ERROR_PCT.format(len(dt_errors), num_runs, len(dt_errors)/num_runs))
+            [print(ERROR_SUMMARY.format(sym, dt_error[sym])) for sym in dt_error]
+            print(ERROR_PCT.format(len(dt_error), num_runs, len(dt_error)/num_runs))
+        ls_skip =  [k for k, v in c_error.items() if v > error_threshold] # skip symbols with too many errors
+        print(MSG_SKIP.format(ls_skip))
         print(MSG_RUN_COMPLETE.format(buffer_seconds))
         time.sleep(buffer_seconds)
 
