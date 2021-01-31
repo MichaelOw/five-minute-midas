@@ -21,14 +21,14 @@ ERROR_EXCEPTION_SYM = 'Error: Exception found for {} ({}: {})'
 ERROR_SUMMARY = '{} - {}'
 ERROR_PCT = 'Errors: {}/{} {:.3f}'
 MSG_SKIP = 'Skipping these symbols: {}'
-MSG_RUN_COMPLETE = 'Update complete, waiting for {} seconds till next update...'
+#MSG_RUN_COMPLETE = 'Update complete, waiting for {} seconds till next update...'
 MSG_DEFAULT_DATE = 'No date entered, using today date: {}'
 DATE_STR_TDY = (datetime.datetime.now()
                     .astimezone(timezone('America/New_York'))
                     .strftime('%Y-%m-%d'))
 
 # user parameters
-buffer_seconds = 5*60
+buffer_seconds = 0.5
 date_str = ''
 live_data = 1
 f_model = 'tup_model_2021-01-18_2321.p'
@@ -105,7 +105,7 @@ def api_get_df_c():
         df_c = pd.concat(ls_df)
         j_df_c = df_c.to_json(orient='split')
     except Exception as e:
-        print(ERROR_EXCEPTION_SYM.format(sym, type(e).__name__, e.args))
+        #print(ERROR_EXCEPTION_SYM.format(sym, type(e).__name__, e.args))
         j_df_c = pd.DataFrame().to_json(orient='split')
     #db.close()
     return j_df_c
@@ -224,6 +224,7 @@ def update_predictions():
                 df_proba = get_df_proba(df_c, tup_model)
                 if not df_proba.empty:
                     df_proba.to_sql('proba', db.conn, if_exists='append', index=0)
+                    time.sleep(buffer_seconds)
             except Exception as e:
                 dt_error[sym] = ERROR_EXCEPTION.format(type(e).__name__, e) # traceback.print_exc()
                 c_error.update([sym])
@@ -233,8 +234,6 @@ def update_predictions():
             print(ERROR_PCT.format(len(dt_error), num_runs, len(dt_error)/num_runs))
         ls_skip =  [k for k, v in c_error.items() if v > error_threshold] # skip symbols with too many errors
         print(MSG_SKIP.format(ls_skip))
-        print(MSG_RUN_COMPLETE.format(buffer_seconds))
-        time.sleep(buffer_seconds)
 
 if __name__ == '__main__':
     db = DataBase([], DIR_DB)
