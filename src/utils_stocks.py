@@ -14,6 +14,7 @@ ERROR_NO_MINUTE_DATA_YTD = 'Skip: Missing minute-level data for yesterday'
 ERROR_NO_MINUTE_DATA_TDY = 'Skip: Missing minute-level data for today'
 ERROR_CANDLES_PER_DAY = 'Skip: Insufficient candles today ({} less than {})'
 ERROR_NULL_COL = 'Skip: NULL value in df_i columns ({})'
+ERROR_NULL_DAY_LEVEL_IND = 'Skip: NULL value in day-level indicators'
 
 @contextmanager
 def suppress_stdout():
@@ -362,6 +363,61 @@ def add_is_profit(df, target_profit, target_loss):
     df['profit'] = df['profit'].astype('float')
     return df
 
+def get_dt_day_indicators(sym, close_latest, date_str_tdy, db):
+    '''Returns dictionary with day level indicators for input symbol
+    Args:
+        sym (str)
+        close_latest (float)
+    Returns:
+        dt_day_indicators (Dictionary)
+    '''
+    q='''
+    with t as (
+        select date, adj_close
+          from prices_d
+         where sym = '{}'
+           and date(date) < '{}'
+         order by date desc
+         limit 185
+    )
+    select adj_close
+      from t
+     order by date
+    '''.format(sym.upper(), date_str_tdy)
+    df = pd.read_sql(q, db.conn)
+    df = df.append(pd.DataFrame({'adj_close':[close_latest]}))
+    df['sma9'] = df['adj_close'].rolling(9).mean()
+    df['sma90'] = df['adj_close'].rolling(90).mean()
+    df['sma180'] = df['adj_close'].rolling(180).mean()
+    df['sma180'] = df['sma180'].fillna(df['sma90'])
+    df['sma9_var'] = (df['adj_close']/df['sma9'])-1
+    df['sma180_var'] = (df['adj_close']/df['sma180'])-1
+    df = add_rsi(df, 14)
+    ls_col = [
+        'sma9_var',
+        'sma180_var',
+        'rsi14',
+    ]
+    if df[ls_col].iloc[-1].isnull().any():
+        raise Exception(ERROR_NULL_DAY_LEVEL_IND)
+    dt_day_indicators = dict(df[ls_col].iloc[-1])
+    return dt_day_indicators
+
+def add_day_level_indicators(df_i, sym, db):
+    '''Returns df_interim with day-level indicators added
+    Args:
+        df_i (pandas.DataFrame)
+        sym (str)
+    Returns:
+        df_i (pandas.DataFrame)
+    '''
+    close_latest = df_i['close'].to_list()[0]
+    date_str_tdy = df_i['datetime'].to_list()[-1].strftime('%Y-%m-%d')
+    dt_day_indicators = get_dt_day_indicators(sym, close_latest, date_str_tdy, db)
+    for col, value in dt_day_indicators.items():
+        df_i[f'day_{col}'] = value
+    return df_i
+
 def get_df_c(sym, date_str, live_data, db, target_profit, target_loss):
     '''Returns df_cooked
     Args:
@@ -379,6 +435,7 @@ def get_df_c(sym, date_str, live_data, db, target_profit, target_loss):
     df_i = add_peaks_valleys(df_i, order=5)
     df_i = add_valley_variances(df_i)
     df_i = add_divergences(df_i)
+    df_i = add_day_level_indicators(df_i, sym, db)
     df_c = add_additional_measures(df_i, sym)
     df_c = add_is_profit(df_c, target_profit, target_loss)
     return df_c
