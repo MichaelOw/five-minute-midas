@@ -28,14 +28,14 @@ DATE_STR_TDY = (datetime.datetime.now()
                     .strftime('%Y-%m-%d'))
 
 # user parameters
+f_model = 'tup_model_2021-02-03_2016.p'
 buffer_seconds = 0.5
-date_str = ''
 live_data = 1
-f_model = 'tup_model_2021-01-18_2321.p'
-sym_limit = None
+date_str = ''
 target_profit = 0.011
 target_loss = -0.031
 error_threshold = 2
+sym_limit = None
 # load model
 with open(os.path.join(DIR_MODELS, f_model), 'rb') as f:
     tup_model = pickle.load(f)
@@ -220,11 +220,11 @@ def update_predictions():
             if sym in ls_skip:
                 continue
             try:
+                time.sleep(buffer_seconds)
                 df_c = get_df_c(sym, date_str, live_data, db, target_profit, target_loss)
                 df_proba = get_df_proba(df_c, tup_model)
                 if not df_proba.empty:
                     df_proba.to_sql('proba', db.conn, if_exists='append', index=0)
-                    time.sleep(buffer_seconds)
             except Exception as e:
                 dt_error[sym] = ERROR_EXCEPTION.format(type(e).__name__, e) # traceback.print_exc()
                 c_error.update([sym])

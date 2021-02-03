@@ -23,7 +23,7 @@ from src.utils_general import get_google_link
 from src.utils_general import suppress_stdout
 logging.getLogger().setLevel(logging.CRITICAL)
 # demo config
-demo = 1
+demo = 0
 f_demo_df_c = os.path.join(os.getcwd(), 'data', 'demo', 'df_c.parquet')
 f_demo_df_proba_sm = os.path.join(os.getcwd(), 'data', 'demo', 'df_proba_sm.parquet')
 dir_db = os.path.join(os.getcwd(), 'data', 'db')
