@@ -425,8 +425,8 @@ def get_df_c(sym, date_str, live_data, db, target_profit, target_loss):
         date_str (str)
         live_data (int)
         db (DataBase object)
-        target_profit (float)
-        target_loss (float)
+        target_profit (float): Target percentage profit e.g. 0.01 -> 1%
+        target_loss (float): Target percentage loss e.g. -0.01 -> -1%
     Returns:
         df_c (pd.DataFrame)
     '''
