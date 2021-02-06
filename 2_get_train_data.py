@@ -18,11 +18,11 @@ from src.utils_date import get_ls_date_str_from_db
 # directories
 DIR_DB = os.path.join(os.getcwd(), 'data', 'db')
 DIR_TRAIN = os.path.join(os.getcwd(), 'data', 'train')
-DIR_CFG = os.path.join(os.getcwd(), 'config.ini')
+F_CFG = os.path.join(os.getcwd(), 'config.ini')
 # objects
 db = DataBase([], DIR_DB)
 cfg = ConfigParser()
-cfg.read(DIR_CFG)
+cfg.read(F_CFG)
 # constants
 ERROR_EXCEPTION = 'Error: Exception found ({}: {})'
 ERROR_SUMMARY = '{} - {}'

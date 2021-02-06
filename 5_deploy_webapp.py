@@ -1,6 +1,4 @@
-'''
-💹💰💷💶💴💵💸🤖👩‍💻🧑‍💻👨‍💻📉📈📊📰
-'''
+'''💹💰💷💶💴💵💸🤖👩‍💻🧑‍💻👨‍💻📉📈📊📰'''
 import os
 import time
 import pytz
@@ -15,6 +13,7 @@ import seaborn as sns
 import streamlit as st
 from streamlit import caching
 import matplotlib.pyplot as plt
+from configparser import ConfigParser
 from requests.exceptions import ConnectionError
 from src.db import DataBase
 from src.utils_stocks import get_curr_price
@@ -22,13 +21,22 @@ from src.utils_general import get_yahoo_link
 from src.utils_general import get_google_link
 from src.utils_general import suppress_stdout
 logging.getLogger().setLevel(logging.CRITICAL)
-# demo config
-demo = 0
-f_demo_df_c = os.path.join(os.getcwd(), 'data', 'demo', 'df_c.parquet')
-f_demo_df_proba_sm = os.path.join(os.getcwd(), 'data', 'demo', 'df_proba_sm.parquet')
-dir_db = os.path.join(os.getcwd(), 'data', 'db')
-if demo: dir_db = os.path.join(os.getcwd(), 'data', 'demo')
-db = DataBase([], dir_db=dir_db)
+# directories
+DIR_DB = os.path.join(os.getcwd(), 'data', 'db')
+DIR_DEMO = os.path.join(os.getcwd(), 'data', 'demo')
+F_CFG = os.path.join(os.getcwd(), 'config.ini')
+# constants and objects
+cfg = ConfigParser()
+cfg.read(F_CFG)
+CFG_SECTION = 'deploy_webapp'
+IS_DEMO = cfg.getint(CFG_SECTION, 'IS_DEMO')
+F_DEMO_DF_C = os.path.join(DIR_DEMO, 'df_c.parquet')
+F_DEMO_DF_PROBA_SM = os.path.join(DIR_DEMO, 'df_proba_sm.parquet')
+DATI_OLD = '19930417_0000'
+if IS_DEMO:
+    db = DataBase([], dir_db=DIR_DEMO)
+else:
+    db = DataBase([], dir_db=DIR_DB)
 # system strings
 ERROR_EXCEPTION = '{} - {}'
 ERROR_CONNECTION = 'Connection error! Try again in a few seconds.'
@@ -75,7 +83,6 @@ TEXT_SIDEBAR_INFO = '''### Information
 - 🤖 Developer: [Michael](https://www.linkedin.com/in/michael-ow/)
 - 📰 Read article: [Medium](https://michael-ow.medium.com/how-i-used-a-random-forest-classifier-to-day-trade-for-2-months-part-i-9c00d96d254c)
 '''
-DATI_OLD = '19930417_0000'
 dt_sort_params = {
     'Profit Probability (Latest)':'proba_last',
     'Profit Probability (Max)':'proba_max',
@@ -89,10 +96,8 @@ def get_predictions_summary():
     Returns:
         df (pandas.Dataframe)
     '''
-    global demo
-    global f_demo_df_proba_sm
-    if demo:
-        df_proba_sm_demo = pd.read_parquet(f_demo_df_proba_sm)
+    if IS_DEMO:
+        df_proba_sm_demo = pd.read_parquet(F_DEMO_DF_PROBA_SM)
         return df_proba_sm_demo
     # api call to get df_proba
     url = 'http://localhost:5000/df_proba_sm'
@@ -114,10 +119,8 @@ def get_predictions(ls_sym, time_str):
     Returns:
         df_c (pandas.Dataframe)
     '''
-    global demo
-    global f_demo_df_c
-    if demo:
-        df_c = pd.read_parquet(f_demo_df_c)
+    if IS_DEMO:
+        df_c = pd.read_parquet(F_DEMO_DF_C)
         index = (df_c['sym'].isin(ls_sym))&(df_c['datetime'].dt.strftime('%H%M')<=time_str)
         df_c = df_c[index]
         return df_c
@@ -246,8 +249,7 @@ def get_df_curr_profit(ls_sym_entry):
     Returns:
         df_curr_profit (pandas.DataFrame)
     '''
-    global demo
-    if demo:
+    if IS_DEMO:
         return pd.DataFrame({'Message':[TEXT_SIDEBAR_WARN_DEMO]})
     ls_sym = ls_sym_entry[0::2]
     ls_entry = ls_sym_entry[1::2]
@@ -367,7 +369,7 @@ try:
     # sidebar - other information
     st.sidebar.write(TEXT_SIDEBAR_INFO)
     empty_slot1 = st.empty()
-    if not demo:
+    if not IS_DEMO:
         if st.button(TEXT_BUTTON1): caching.clear_cache() # refresh button
     # api call to get proba
     df_proba_sm = get_predictions_summary()
@@ -377,7 +379,7 @@ try:
     tup_proba_last = st.slider(TEXT_SLIDER1, min_value=0, max_value=100, value=(90,100), step=5, format = '%d %%')
     tup_proba_last = tuple(x/100 for x in tup_proba_last)
     ls_past_mins = ['1 min'] + [str(x+2)+' mins' for x in range(8)] + [str(x+1)+' mins' for x in range(10-1, 60, 10)] + ['All']
-    if demo:
+    if IS_DEMO:
         past_mins = 'All'
     else:
         past_mins = st.select_slider(TEXT_SLIDER2, ls_past_mins, 'All')

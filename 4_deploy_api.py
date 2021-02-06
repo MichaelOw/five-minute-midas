@@ -19,10 +19,10 @@ from src.utils_model import get_df_proba
 # directories
 DIR_DB = os.path.join(os.getcwd(), 'data', 'db')
 DIR_MODELS = os.path.join(os.getcwd(), 'data', 'models')
-DIR_CFG = os.path.join(os.getcwd(), 'config.ini')
+F_CFG = os.path.join(os.getcwd(), 'config.ini')
 # objects
 cfg = ConfigParser()
-cfg.read(DIR_CFG)
+cfg.read(F_CFG)
 # constants
 DATE_STR_TDY = (datetime.datetime.now()
                     .astimezone(timezone('America/New_York'))
