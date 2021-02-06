@@ -63,15 +63,6 @@ def add_days(date_str, n):
             + datetime.timedelta(days=n)
             ).strftime('%Y-%m-%d')
 
-def is_weekday(date_str):
-    '''
-    Args:
-        date_str (str): e.g. '2020-06-22'
-    Return:
-        _ (int): 1 if date is weekday, else 0
-    '''
-    return datetime.datetime.strptime(date_str, '%Y-%m-%d').weekday() <= 4
-
 def get_ls_date_str_from_db(start, end, db):
     '''Returns trading dates found in price_m, from start to end date inclusive
     Args:
@@ -81,12 +72,13 @@ def get_ls_date_str_from_db(start, end, db):
         ls_date_str (list of str)
     '''
     assert end>=start
-    q = '''
-        SELECT DISTINCT DATE(datetime) AS date
-          FROM prices_m
+    q='''
+        SELECT DISTINCT DATE(date) as date
+          FROM prices_d
          WHERE sym='IBM'
-         ORDER BY DATE(datetime)
-    '''
+           AND DATE(date) >= '{}'
+           AND DATE(date) <= '{}'
+         ORDER BY date
+    '''.format(start, end)
     ls_date_str = pd.read_sql(q, db.conn)['date'].to_list()
-    ls_date_str = [x for x in ls_date_str if start<=x<=end]
     return ls_date_str
