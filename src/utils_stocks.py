@@ -418,7 +418,7 @@ def add_day_level_indicators(df_i, sym, db):
         df_i[f'day_{col}'] = value
     return df_i
 
-def get_df_c(sym, date_str, live_data, db, target_profit, target_loss):
+def get_df_c(sym, date_str, live_data, db, target_profit, target_loss, index_limit=1000):
     '''Returns df_cooked
     Args:
         sym (str)
@@ -432,6 +432,7 @@ def get_df_c(sym, date_str, live_data, db, target_profit, target_loss):
     '''
     assert target_profit>0 and target_loss<0
     df_i = get_df_i(sym, date_str, live_data, db)
+    df_i = df_i.iloc[:index_limit]
     df_i = add_peaks_valleys(df_i, order=5)
     df_i = add_valley_variances(df_i)
     df_i = add_divergences(df_i)
