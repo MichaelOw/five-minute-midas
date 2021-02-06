@@ -14,6 +14,7 @@ from src.db import DataBase
 from flask import Flask, request
 from src.utils_stocks import get_df_c
 from src.utils_general import timer_dec
+from src.utils_model import get_df_proba
 DIR_DB = os.path.join(os.getcwd(), 'data', 'db')
 DIR_MODELS = os.path.join(os.getcwd(), 'data', 'models')
 ERROR_EXCEPTION = 'Error: Exception found ({}: {})'
@@ -35,7 +36,6 @@ date_str = ''
 target_profit = 0.011
 target_loss = -0.031
 error_threshold = 2
-sym_limit = None
 # load model
 with open(os.path.join(DIR_MODELS, f_model), 'rb') as f:
     tup_model = pickle.load(f)
@@ -164,38 +164,6 @@ def get_df_sym_filter(db):
     df = df.reset_index()
     return df
 
-def get_df_proba(df_c, tup_model):
-    '''Returns dataframe with only profit predictions
-    Args:
-        df_c (pandas.DataFrame)
-        tup_model (tup):
-            q (str): Pandas query string
-            ls_col (List of str)
-            full_pipe (sklearn.pipeline.Pipeline)
-    Returns:
-        df_proba (pandas.DataFrame)
-    '''
-    q, ls_col, full_pipe = tup_model
-    # Remove outliers and non-relevant data 
-    df = df_c.query(q).copy()
-    if df.empty:
-        ls_col = ['sym', 'datetime', 'my_index', 'proba', 'datetime_update']
-        df_proba = pd.DataFrame(columns=ls_col)
-    else:
-        s_sym = df['sym']
-        s_datetime = df['datetime']
-        s_timestamp = [datetime.datetime.now()]*df.shape[0]
-        df = df[ls_col]
-        arr_proba = full_pipe.predict_proba(df)
-        df_proba = pd.DataFrame({
-            'sym':s_sym,
-            'datetime':s_datetime,
-            'my_index':list(df.index),
-            'proba':arr_proba[:,1],
-            'datetime_update':s_timestamp,
-        })
-    return df_proba
-
 @timer_dec
 def update_predictions():
     '''Runs an iteration of model predictions on
@@ -205,7 +173,6 @@ def update_predictions():
     global j_df_proba
     global date_str
     global live_data
-    global sym_limit
     global buffer_seconds
     global target_profit
     global target_loss
@@ -216,7 +183,6 @@ def update_predictions():
         date_str = DATE_STR_TDY
     db = DataBase([], DIR_DB)
     df_sym = get_df_sym_filter(db)
-    df_sym = df_sym.iloc[:sym_limit]
     c_error = collections.Counter()
     ls_skip = []
     while 1:

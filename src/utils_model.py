@@ -1,9 +1,42 @@
 import os
+import datetime
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.metrics import precision_recall_curve
 DIR_IMAGES = os.path.join(os.getcwd(), 'data', 'images')
+
+def get_df_proba(df_c, tup_model):
+    '''Returns dataframe with only profit predictions
+    Args:
+        df_c (pandas.DataFrame)
+        tup_model (tup):
+            q (str): Pandas query string
+            ls_col (List of str)
+            full_pipe (sklearn.pipeline.Pipeline)
+    Returns:
+        df_proba (pandas.DataFrame)
+    '''
+    q, ls_col, full_pipe = tup_model
+    # Remove outliers and non-relevant data 
+    df = df_c.query(q).copy()
+    if df.empty:
+        ls_col = ['sym', 'datetime', 'my_index', 'proba', 'datetime_update']
+        df_proba = pd.DataFrame(columns=ls_col)
+    else:
+        s_sym = df['sym']
+        s_datetime = df['datetime']
+        s_timestamp = [datetime.datetime.now()]*df.shape[0]
+        df = df[ls_col]
+        arr_proba = full_pipe.predict_proba(df)
+        df_proba = pd.DataFrame({
+            'sym':s_sym,
+            'datetime':s_datetime,
+            'my_index':list(df.index),
+            'proba':arr_proba[:,1],
+            'datetime_update':s_timestamp,
+        })
+    return df_proba
 
 def get_ls_col(tf, X):
     '''Get final list of columns from ColumnTransformer object
