@@ -12,36 +12,48 @@ from tqdm import tqdm
 from pytz import timezone
 from src.db import DataBase
 from flask import Flask, request
+from configparser import ConfigParser
 from src.utils_stocks import get_df_c
 from src.utils_general import timer_dec
 from src.utils_model import get_df_proba
+# directories
 DIR_DB = os.path.join(os.getcwd(), 'data', 'db')
 DIR_MODELS = os.path.join(os.getcwd(), 'data', 'models')
+DIR_CFG = os.path.join(os.getcwd(), 'config.ini')
+# objects
+cfg = ConfigParser()
+cfg.read(DIR_CFG)
+# constants
+DATE_STR_TDY = (datetime.datetime.now()
+                    .astimezone(timezone('America/New_York'))
+                    .strftime('%Y-%m-%d'))
 ERROR_EXCEPTION = 'Error: Exception found ({}: {})'
 ERROR_EXCEPTION_SYM = 'Error: Exception found for {} ({}: {})'
 ERROR_SUMMARY = '{} - {}'
 ERROR_PCT = 'Errors: {}/{} {:.3f}'
 MSG_SKIP = 'Skipping these symbols: {}'
 MSG_DEFAULT_DATE = 'No date entered, using today date: {}'
-DATE_STR_TDY = (datetime.datetime.now()
-                    .astimezone(timezone('America/New_York'))
-                    .strftime('%Y-%m-%d'))
+CFG_SECTION = 'deploy_api'
+F_MODEL = cfg.get(CFG_SECTION, 'F_MODEL')
+BUFFER_SECONDS = cfg.getfloat(CFG_SECTION, 'BUFFER_SECONDS')
+LIVE_DATA = cfg.getint(CFG_SECTION, 'LIVE_DATA')
+DATE_STR = cfg.get(CFG_SECTION, 'DATE_STR')
+TARGET_PROFIT = cfg.getfloat(CFG_SECTION, 'TARGET_PROFIT')
+TARGET_LOSS = cfg.getfloat(CFG_SECTION, 'TARGET_LOSS')
+ERROR_THRESHOLD = cfg.getint(CFG_SECTION, 'ERROR_THRESHOLD')
+LS_SEC = json.loads(cfg.get(CFG_SECTION,'LS_SEC'))
+LS_IND = json.loads(cfg.get(CFG_SECTION,'LS_IND'))
 pause = 0
-
-# user parameters
-f_model = 'tup_model_2021-02-05_2330.p'
-buffer_seconds = 0.1
-live_data = 1
-date_str = ''
-target_profit = 0.011
-target_loss = -0.031
-error_threshold = 2
+# get date
+if not DATE_STR:
+    print(MSG_DEFAULT_DATE.format(DATE_STR_TDY))
+    DATE_STR = DATE_STR_TDY
 # load model
-with open(os.path.join(DIR_MODELS, f_model), 'rb') as f:
+with open(os.path.join(DIR_MODELS, F_MODEL), 'rb') as f:
     tup_model = pickle.load(f)
 # api
 app = Flask(__name__)
-
+# functions
 @app.route('/df_proba_sm', methods=['POST'])
 def api_get_df_proba_sm():
     '''API that returns prediction summary in dataframe in JSON
@@ -70,7 +82,7 @@ def api_get_df_proba_sm():
     df2 = df2[['sym', 'datetime_last', 'proba_last']]
     df_proba_sm = pd.merge(df1, df2, how='left', on='sym')
     j_df_proba_sm = df_proba_sm.to_json(orient='split')
-    #db.close()
+    db.close()
     return j_df_proba_sm
 
 @app.route('/df_c', methods=['POST'])
@@ -112,37 +124,16 @@ def api_get_df_c():
     except Exception as e:
         print(ERROR_EXCEPTION_SYM.format(sym, type(e).__name__, e.args))
         j_df_c = pd.DataFrame().to_json(orient='split')
-    #db.close()
+    db.close()
     pause = 0
     return j_df_c
 
-def get_df_sym_filter(db):
+def get_df_sym_filter(db, ls_sec, ls_ind):
     '''Returns dataframe of stock symbols in
     pre-selected sectors and industries
     Args:
         db (DataBase)
     '''
-    ls_sec = [       
-        'Technology',
-        'Utilities',
-        'Communication Services',
-        #'Consumer Defensive',
-        #'Consumer Cyclical',
-        #'Energy',
-        #'Basic Materials',
-        #'Real Estate',
-        #'Industrials,'
-        #'Financial',
-        #'Healthcare',
-        #'Financial Services',
-    ]
-    ls_ind = [
-        'Auto Manufacturers',
-        'Internet Retail',
-        'Education & Training Services',
-        'Packaged Foods',
-        'Grocery Stores',
-    ]
     q = '''
         SELECT stocks.sym
                ,stocks.long_name
@@ -169,32 +160,20 @@ def update_predictions():
     '''Runs an iteration of model predictions on
     selected symbols and saves output in database
     '''
-    global tup_model
-    global j_df_proba
-    global date_str
-    global live_data
-    global buffer_seconds
-    global target_profit
-    global target_loss
-    global error_threshold
-    global pause
-    if not date_str:
-        print(MSG_DEFAULT_DATE.format(DATE_STR_TDY))
-        date_str = DATE_STR_TDY
     db = DataBase([], DIR_DB)
-    df_sym = get_df_sym_filter(db)
+    df_sym = get_df_sym_filter(db, LS_SEC, LS_IND)
     c_error = collections.Counter()
     ls_skip = []
     while 1:
         dt_error = {}
         for i, tup in tqdm(df_sym.iterrows(), total=df_sym.shape[0]):
             while pause:
-                time.sleep(buffer_seconds)
+                time.sleep(BUFFER_SECONDS)
             sym = tup['sym']
             if sym not in ls_skip:
                 try:
-                    time.sleep(buffer_seconds)
-                    df_c = get_df_c(sym, date_str, live_data, db, target_profit, target_loss)
+                    time.sleep(BUFFER_SECONDS)
+                    df_c = get_df_c(sym, DATE_STR, LIVE_DATA, db, TARGET_PROFIT, TARGET_LOSS)
                     df_proba = get_df_proba(df_c, tup_model)
                     if not df_proba.empty:
                         df_proba.to_sql('proba', db.conn, if_exists='append', index=0)
@@ -205,7 +184,7 @@ def update_predictions():
             num_runs = df_sym.shape[0]
             [print(ERROR_SUMMARY.format(sym, dt_error[sym])) for sym in dt_error]
             print(ERROR_PCT.format(len(dt_error), num_runs, len(dt_error)/num_runs))
-        ls_skip =  [k for k, v in c_error.items() if v > error_threshold] # skip symbols with too many errors
+        ls_skip =  [k for k, v in c_error.items() if v > ERROR_THRESHOLD] # skip symbols with too many errors
         print(MSG_SKIP.format(ls_skip))
 
 if __name__ == '__main__':

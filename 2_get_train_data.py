@@ -9,19 +9,35 @@ import yfinance as yf
 from tqdm import tqdm
 from src.db import DataBase
 import matplotlib.pyplot as plt
+from configparser import ConfigParser
 from src.utils_beeps import beeps
 from src.utils_stocks import get_df_c
 from src.utils_general import get_df_sym
 from src.utils_general import plot_divergences
 from src.utils_date import get_ls_date_str_from_db
+# directories
 DIR_DB = os.path.join(os.getcwd(), 'data', 'db')
 DIR_TRAIN = os.path.join(os.getcwd(), 'data', 'train')
+DIR_CFG = os.path.join(os.getcwd(), 'config.ini')
+# objects
+db = DataBase([], DIR_DB)
+cfg = ConfigParser()
+cfg.read(DIR_CFG)
+# constants
 ERROR_EXCEPTION = 'Error: Exception found ({}: {})'
 ERROR_SUMMARY = '{} - {}'
 ERROR_PCT = 'Errors: {}/{} {:.3f}'
 MSG_DATE_RANGE = 'Creating df_train for date range: {} to {}'
 MSG_SAVED = '{} saved!'
-ls_col = [
+FILENAME_TRAIN = 'df_train_{}.parquet'
+CFG_SECTION = 'get_train_data'
+LIVE_DATA = cfg.getint(CFG_SECTION, 'LIVE_DATA')
+TARGET_PROFIT = cfg.getfloat(CFG_SECTION, 'TARGET_PROFIT')
+TARGET_LOSS = cfg.getfloat(CFG_SECTION, 'TARGET_LOSS')
+DATE_START = cfg.get(CFG_SECTION, 'DATE_START')
+DATE_END = cfg.get(CFG_SECTION, 'DATE_END')
+LS_DATE_STR = get_ls_date_str_from_db(DATE_START, DATE_END, db)
+LS_COL = [
     'is_profit',
     'rsi14',
     'sma9_var',
@@ -53,43 +69,32 @@ ls_col = [
     'prev_close',
     'divergence',
 ]
-
-db = DataBase([], DIR_DB)
-# params
-live_data = 0
-target_profit = 0.011
-target_loss = -0.031
-date_start = '2020-09-28'
-date_end = '2020-12-31'
-ls_date_str = get_ls_date_str_from_db(date_start, date_end, db) 
-print(MSG_DATE_RANGE.format(ls_date_str[0], ls_date_str[-1]))
 # extract and transform
+print(MSG_DATE_RANGE.format(LS_DATE_STR[0], LS_DATE_STR[-1]))
 ls_df_t = []
-for date_str in ls_date_str:
+for date_str in LS_DATE_STR:
     dt_errors = {}
     print(date_str)
     df_sym = get_df_sym(db, date_str)
     for i, tup in tqdm(df_sym.iterrows(), total=df_sym.shape[0]):
         sym = tup['sym']
         try:
-            df_c = get_df_c(sym, date_str, live_data, db, target_profit, target_loss)
+            df_c = get_df_c(sym, date_str, LIVE_DATA, db, TARGET_PROFIT, TARGET_LOSS)
             ls_df_t.append(df_c[df_c['divergence']!=''][ls_col])
         except Exception as e:
             dt_errors[sym] = ERROR_EXCEPTION.format(type(e).__name__, e)
     if dt_errors:
-        num_runs = df_sym.shape[0]*len(ls_date_str)
+        num_runs = df_sym.shape[0]*len(LS_DATE_STR)
         [print(ERROR_SUMMARY.format(sym, dt_errors[sym])) for sym in dt_errors]
         print(ERROR_PCT.format(len(dt_errors), num_runs, len(dt_errors)/num_runs))
 if ls_df_t:
     # save df_train
     df_t = pd.concat(ls_df_t)
     df_t = df_t.dropna()
-    #cat_cols = df_t.select_dtypes(include=object).columns
-    #df_t[cat_cols] = df_t[cat_cols].fillna('none').astype('category')
     print(df_t.info())
     # df_train - Export
     timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M')
-    f = os.path.join(DIR_TRAIN, f'df_train_{timestamp}.parquet')
+    f = os.path.join(DIR_TRAIN, FILENAME_TRAIN.format(timestamp))
     df_t.to_parquet(f)
 print(MSG_SAVED.format(f))
 beeps()
