@@ -21,15 +21,15 @@ ERROR_EXCEPTION_SYM = 'Error: Exception found for {} ({}: {})'
 ERROR_SUMMARY = '{} - {}'
 ERROR_PCT = 'Errors: {}/{} {:.3f}'
 MSG_SKIP = 'Skipping these symbols: {}'
-#MSG_RUN_COMPLETE = 'Update complete, waiting for {} seconds till next update...'
 MSG_DEFAULT_DATE = 'No date entered, using today date: {}'
 DATE_STR_TDY = (datetime.datetime.now()
                     .astimezone(timezone('America/New_York'))
                     .strftime('%Y-%m-%d'))
+pause = 0
 
 # user parameters
-f_model = 'tup_model_2021-02-03_2016.p'
-buffer_seconds = 0.5
+f_model = 'tup_model_2021-02-05_2330.p'
+buffer_seconds = 0.1
 live_data = 1
 date_str = ''
 target_profit = 0.011
@@ -84,6 +84,10 @@ def api_get_df_c():
     global live_data
     global target_profit
     global target_loss
+    global buffer_seconds
+    global pause
+    pause = 1
+    time.sleep(2)
     db = DataBase([], DIR_DB)
     j_data = request.get_json()
     ls_sym = json.loads(j_data)['ls_sym']
@@ -91,6 +95,7 @@ def api_get_df_c():
     try:
         ls_df = []
         for sym in ls_sym:
+            time.sleep(buffer_seconds)
             df = get_df_c(sym, date_str, live_data, db, target_profit, target_loss)
             df = df[df['datetime'].dt.strftime('%H%M')<=time_str]
             df_proba = get_df_proba(df, tup_model)
@@ -105,9 +110,10 @@ def api_get_df_c():
         df_c = pd.concat(ls_df)
         j_df_c = df_c.to_json(orient='split')
     except Exception as e:
-        #print(ERROR_EXCEPTION_SYM.format(sym, type(e).__name__, e.args))
+        print(ERROR_EXCEPTION_SYM.format(sym, type(e).__name__, e.args))
         j_df_c = pd.DataFrame().to_json(orient='split')
     #db.close()
+    pause = 0
     return j_df_c
 
 def get_df_sym_filter(db):
@@ -204,30 +210,31 @@ def update_predictions():
     global target_profit
     global target_loss
     global error_threshold
+    global pause
     if not date_str:
         print(MSG_DEFAULT_DATE.format(DATE_STR_TDY))
         date_str = DATE_STR_TDY
     db = DataBase([], DIR_DB)
     df_sym = get_df_sym_filter(db)
     df_sym = df_sym.iloc[:sym_limit]
-    ls_df_proba = []
     c_error = collections.Counter()
     ls_skip = []
     while 1:
         dt_error = {}
         for i, tup in tqdm(df_sym.iterrows(), total=df_sym.shape[0]):
-            sym = tup['sym']
-            if sym in ls_skip:
-                continue
-            try:
+            while pause:
                 time.sleep(buffer_seconds)
-                df_c = get_df_c(sym, date_str, live_data, db, target_profit, target_loss)
-                df_proba = get_df_proba(df_c, tup_model)
-                if not df_proba.empty:
-                    df_proba.to_sql('proba', db.conn, if_exists='append', index=0)
-            except Exception as e:
-                dt_error[sym] = ERROR_EXCEPTION.format(type(e).__name__, e) # traceback.print_exc()
-                c_error.update([sym])
+            sym = tup['sym']
+            if sym not in ls_skip:
+                try:
+                    time.sleep(buffer_seconds)
+                    df_c = get_df_c(sym, date_str, live_data, db, target_profit, target_loss)
+                    df_proba = get_df_proba(df_c, tup_model)
+                    if not df_proba.empty:
+                        df_proba.to_sql('proba', db.conn, if_exists='append', index=0)
+                except Exception as e:
+                    dt_error[sym] = ERROR_EXCEPTION.format(type(e).__name__, e) # traceback.print_exc()
+                    c_error.update([sym])
         if dt_error:
             num_runs = df_sym.shape[0]
             [print(ERROR_SUMMARY.format(sym, dt_error[sym])) for sym in dt_error]
@@ -241,3 +248,4 @@ if __name__ == '__main__':
     x = threading.Thread(target=update_predictions, daemon=True)
     x.start()
     app.run(debug=False, host='0.0.0.0')
+    x.join()
