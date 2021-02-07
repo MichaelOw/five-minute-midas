@@ -183,7 +183,7 @@ def get_df_i(sym, date_str, live_data, db, num_candles_min = 200):
         raise Exception(ERROR_NO_MINUTE_DATA_TDY)
     num_candles_today = df[df['date_str']==date_str].shape[0]
     if num_candles_today<num_candles_min and not live_data:
-        raise Exception(''.format(num_candles_today, num_candles_min))
+        raise Exception(ERROR_CANDLES_PER_DAY.format(num_candles_today, num_candles_min))
     df = df[df['date_str']<=date_str]
     df = df[df['date_str']>=start_str]
     df['sma9'] = df['adj_close'].rolling(9).mean()
