@@ -91,12 +91,6 @@ def api_get_df_c():
     Returns:
         j_df_c (JSON of pandas.Dataframe)
     '''
-    global tup_model
-    global date_str
-    global live_data
-    global target_profit
-    global target_loss
-    global buffer_seconds
     global pause
     pause = 1
     time.sleep(2)
@@ -107,8 +101,8 @@ def api_get_df_c():
     try:
         ls_df = []
         for sym in ls_sym:
-            time.sleep(buffer_seconds)
-            df = get_df_c(sym, date_str, live_data, db, target_profit, target_loss)
+            time.sleep(BUFFER_SECONDS)
+            df = get_df_c(sym, DATE_STR, LIVE_DATA, db, TARGET_PROFIT, TARGET_LOSS)
             df = df[df['datetime'].dt.strftime('%H%M')<=time_str]
             df_proba = get_df_proba(df, tup_model)
             if not df_proba.empty:
