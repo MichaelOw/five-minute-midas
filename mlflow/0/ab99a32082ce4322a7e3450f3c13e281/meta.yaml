@@ -2,7 +2,7 @@ artifact_uri: file:///D:/Michael/five_minute_midas/mlflow/0/ab99a32082ce4322a7e3
 end_time: 1606554373776
 entry_point_name: ''
 experiment_id: '0'
-lifecycle_stage: active
+lifecycle_stage: deleted
 name: ''
 run_id: ab99a32082ce4322a7e3450f3c13e281
 run_uuid: ab99a32082ce4322a7e3450f3c13e281
