@@ -171,6 +171,15 @@ def db_remove_dups_stocks(db):
                  GROUP BY sym)
     '''
     db.execute(q)
+    q = '''
+        DELETE
+          FROM stocks_error
+         WHERE ROWID NOT IN
+               (SELECT MAX(ROWID)
+                  FROM stocks_error
+                 GROUP BY sym)
+    '''
+    db.execute(q)
 
 def db_remove_dups_prices_m(db, date_str):
     '''Removes duplicates in table prices_m.

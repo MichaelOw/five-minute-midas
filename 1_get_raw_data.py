@@ -129,24 +129,19 @@ db_demo = DataBase(ls_init_str, DIR_DB_DEMO)
 print('1. Update stocks')
 ls_sym = get_ls_sym()
 q = '''
-    SELECT sym FROM STOCKS UNION ALL
-    SELECT sym FROM stocks_error
-    --SELECT sym FROM stocks WHERE summary IS NOT NULL
+    SELECT sym FROM stocks 
+    -- UNION ALL SELECT sym FROM stocks_error
+    --UNION ALL SELECT sym FROM stocks WHERE summary IS NOT NULL
 '''
 ls_sym_exclude = pd.read_sql(q, db.conn)['sym'].to_list()
 ls_sym = [x for x in ls_sym if x not in ls_sym_exclude]
 # extract and load
-ls_df = []
 dt_errors = {}
 if ls_sym:
     for i, sym in enumerate(tqdm(ls_sym)):
         try:
-            if ((i+1)%50==0 or (i+1)==len(ls_sym)) and ls_df: # load to db in batches
-                df = pd.concat(ls_df)
-                df.to_sql('stocks', db.conn, if_exists='append', index=0)
-                ls_df = []
             df_info = get_df_info(sym)
-            ls_df.append(df_info)
+            df_info.to_sql('stocks', db.conn, if_exists='append', index=0)
         except Exception as e:
             dt_errors[sym] = ERROR_EXCEPTION.format(type(e).__name__, e)
             df = pd.DataFrame([{'sym':sym}])
