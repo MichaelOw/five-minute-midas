@@ -74,17 +74,18 @@ print(MSG_DATE_RANGE.format(LS_DATE_STR[0], LS_DATE_STR[-1]))
 ls_df_t = []
 for date_str in LS_DATE_STR:
     dt_errors = {}
+    num_runs = 0
     print(date_str)
     df_sym = get_df_sym(db, date_str)
     for i, tup in tqdm(df_sym.iterrows(), total=df_sym.shape[0]):
         sym = tup['sym']
+        num_runs += 1
         try:
             df_c = get_df_c(sym, date_str, LIVE_DATA, db, TARGET_PROFIT, TARGET_LOSS)
-            ls_df_t.append(df_c[df_c['divergence']!=''][ls_col])
+            ls_df_t.append(df_c[df_c['divergence']!=''][LS_COL])
         except Exception as e:
             dt_errors[sym] = ERROR_EXCEPTION.format(type(e).__name__, e)
     if dt_errors:
-        num_runs = df_sym.shape[0]*len(LS_DATE_STR)
         [print(ERROR_SUMMARY.format(sym, dt_errors[sym])) for sym in dt_errors]
         print(ERROR_PCT.format(len(dt_errors), num_runs, len(dt_errors)/num_runs))
 if ls_df_t:
