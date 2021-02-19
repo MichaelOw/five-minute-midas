@@ -15,6 +15,7 @@ ERROR_NO_MINUTE_DATA_TDY = 'Skip: Missing minute-level data for today'
 ERROR_CANDLES_PER_DAY = 'Skip: Insufficient candles today ({} less than {})'
 ERROR_NULL_COL = 'Skip: NULL value in df_i columns ({})'
 ERROR_NULL_DAY_LEVEL_IND = 'Skip: NULL value in day-level indicators'
+ERROR_PRICES_D_NOT_UPDATE = 'Error: prices_d not updated, latest date found: {}'
 
 @contextmanager
 def suppress_stdout():
@@ -484,3 +485,17 @@ def get_df_info(sym):
     df_info = pd.DataFrame([dt_info])
     df_info = df_info.rename(columns=dt_col)
     return df_info
+
+def check_prices_d_updated(date_str_tdy, db):
+    '''Raises exception if table prices_d not updated
+    Args:
+        date_str_tdy (str)
+        db (DataBase object)
+    '''
+    df = yf.download('IBM', period = '5d', interval='1d', progress=0).reset_index()
+    date_str_last = df[df['Date']<date_str_tdy]['Date'].dt.date.astype('str').to_list()[-1]
+    q = 'select date(max(date)) as date from prices_d'
+    df = pd.read_sql(q, db.conn)
+    date_str_latest = df['date'].values[0]
+    if date_str_latest != date_str_last:
+        raise Exception(ERROR_PRICES_D_NOT_UPDATE.format(date_str_latest))

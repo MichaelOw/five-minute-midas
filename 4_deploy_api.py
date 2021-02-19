@@ -14,6 +14,7 @@ from src.db import DataBase
 from flask import Flask, request
 from configparser import ConfigParser
 from src.utils_stocks import get_df_c
+from src.utils_stocks import check_prices_d_updated
 from src.utils_general import timer_dec
 from src.utils_model import get_df_proba
 # directories
@@ -48,6 +49,10 @@ pause = 0
 if not DATE_STR:
     print(MSG_DEFAULT_DATE.format(DATE_STR_TDY))
     DATE_STR = DATE_STR_TDY
+# init database
+db = DataBase([], DIR_DB)
+db.execute('DELETE FROM proba')
+check_prices_d_updated(DATE_STR_TDY, db)
 # load model
 with open(os.path.join(DIR_MODELS, F_MODEL), 'rb') as f:
     tup_model = pickle.load(f)
@@ -62,7 +67,7 @@ def api_get_df_proba_sm():
     '''
     db = DataBase([], DIR_DB)
     q = '''
-    SELECT *
+    SELECT sym, datetime, my_index, proba, datetime_update
       FROM proba
      WHERE sym + datetime_update IN
            (SELECT sym + MAX(datetime_update)
@@ -182,8 +187,6 @@ def update_predictions():
         print(MSG_SKIP.format(ls_skip))
 
 if __name__ == '__main__':
-    db = DataBase([], DIR_DB)
-    db.execute('DELETE FROM proba')
     x = threading.Thread(target=update_predictions, daemon=True)
     x.start()
     app.run(debug=False, host='0.0.0.0')
