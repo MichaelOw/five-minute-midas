@@ -1,0 +1,15 @@
+artifact_uri: file:///D:/Michael/five_minute_midas/mlflow/0/9cf2f5c1c39049ec82372c8fd48616c8/artifacts
+end_time: 1613565800387
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: deleted
+name: ''
+run_id: 9cf2f5c1c39049ec82372c8fd48616c8
+run_uuid: 9cf2f5c1c39049ec82372c8fd48616c8
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1613565735954
+status: 3
+tags: []
+user_id: Mike
