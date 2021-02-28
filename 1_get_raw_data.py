@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 from tqdm import tqdm
+from configparser import ConfigParser
 from src.db import DataBase
 from src.utils_beeps import beeps
 from src.utils_date import add_days
@@ -16,17 +17,28 @@ from src.utils_stocks import suppress_stdout
 from src.utils_general import db_remove_dups_stocks
 from src.utils_general import db_remove_dups_prices_m
 from src.utils_general import db_remove_dups_prices_d
+# directories
 DIR_DB = os.path.join(os.getcwd(), 'data', 'db')
 DIR_DB_DEMO = os.path.join(os.getcwd(), 'data', 'demo')
+F_CFG = os.path.join(os.getcwd(), 'config.ini')
+# objects
+cfg = ConfigParser()
+cfg.read(F_CFG)
+# constants
 ERROR_UNIQUE_DATES = 'Skip: Insufficient unique dates ({} less than {})'
 ERROR_CANDLES_PER_DAY = 'Skip: Insufficient candles per day ({} less than {})'
 ERROR_EXCEPTION = 'Error: Exception found ({}: {})'
 ERROR_SUMMARY = '{} - {}'
 ERROR_PCT = 'Errors: {}/{} {:.3f}'
-MSG_PRICES_M_1 = '\n2. Update prices_m'
-MSG_PRICES_M_2 = 'Extracing prices in {}'
-MSG_PRICES_D_1 = '\n3. Update prices_d'
+MSG_STOCKS = '1. Update stocks'
+MSG_PRICES_D_1 = '\n2. Update prices_d'
 MSG_PRICES_D_2 = 'Extracting from {} plus 1, to {}'
+MSG_PRICES_M_1 = '\n3. Update prices_m'
+MSG_PRICES_M_2 = 'Extracing prices in {}'
+CFG_SECTION = 'get_raw_data'
+UPDATE_STOCKS = cfg.getint(CFG_SECTION, 'UPDATE_STOCKS')
+UPDATE_PRICES_D = cfg.getint(CFG_SECTION, 'UPDATE_PRICES_D')
+UPDATE_PRICES_M = cfg.getint(CFG_SECTION, 'UPDATE_PRICES_M')
 
 def get_df_prices_m(ls_sym, ls_date_str, candles_min = 200):
     '''Returns dataframe containing minute-level prices
@@ -126,116 +138,120 @@ db_demo = DataBase(ls_init_str, DIR_DB_DEMO)
 #################
 # Update stocks #
 #################
-print('1. Update stocks')
-ls_sym = get_ls_sym()
-q = '''
-    SELECT sym FROM stocks 
-    -- UNION ALL SELECT sym FROM stocks_error
-    --UNION ALL SELECT sym FROM stocks WHERE summary IS NOT NULL
-'''
-ls_sym_exclude = pd.read_sql(q, db.conn)['sym'].to_list()
-ls_sym = [x for x in ls_sym if x not in ls_sym_exclude]
-# extract and load
-dt_errors = {}
-if ls_sym:
-    for i, sym in enumerate(tqdm(ls_sym)):
-        try:
-            df_info = get_df_info(sym)
-            df_info.to_sql('stocks', db.conn, if_exists='append', index=0)
-        except Exception as e:
-            dt_errors[sym] = ERROR_EXCEPTION.format(type(e).__name__, e)
-            df = pd.DataFrame([{'sym':sym}])
-            df.to_sql('stocks_error', db.conn, if_exists='append', index=0)
-    # print errors
-    if dt_errors:
-        [print(ERROR_SUMMARY.format(sym, dt_errors[sym])) for sym in dt_errors]
-        print(ERROR_PCT.format(len(dt_errors), len(ls_sym), len(dt_errors)/len(ls_sym)))
-    # remove duplicates
-    db_remove_dups_stocks(db)
-beeps(1)
-
-###################
-# Update prices_m #
-###################
-print(MSG_PRICES_M_1)
-# get max date present
-q = '''
-    SELECT DATE(MAX(datetime))
-      FROM prices_m
-     WHERE sym='IBM'
-'''
-max_date_str = pd.read_sql(q, db.conn).iloc[0,0]
-# get missing dates
-df = yf.download('IBM', period='1y', interval='1d', progress=0).reset_index()
-df['Date']= df['Date'].astype('str')
-ls_date_str = df[df['Date']>max_date_str]['Date'].to_list()
-if ls_date_str:
-    print(MSG_PRICES_M_2.format(ls_date_str))
-    # get ls_sym
+if UPDATE_STOCKS:
+    print(MSG_STOCKS)
+    ls_sym = get_ls_sym()
     q = '''
-        SELECT sym
-          FROM stocks
-         WHERE sec IS NOT NULL
+        SELECT sym FROM stocks 
+        UNION ALL SELECT sym FROM stocks_error
+        --UNION ALL SELECT sym FROM stocks WHERE summary IS NOT NULL
     '''
-    ls_sym = pd.read_sql(q, db.conn)['sym'].to_list()
+    ls_sym_exclude = pd.read_sql(q, db.conn)['sym'].to_list()
+    ls_sym = [x for x in ls_sym if x not in ls_sym_exclude]
     # extract and load
-    df_prices_m = get_df_prices_m(ls_sym, ls_date_str)
-    if not df_prices_m.empty:
-        df_prices_m.to_sql('prices_m', db.conn, if_exists='append', index=0)
-        db_remove_dups_prices_m(db, ls_date_str[0])
+    dt_errors = {}
+    if ls_sym:
+        for i, sym in enumerate(tqdm(ls_sym)):
+            try:
+                df_info = get_df_info(sym)
+                df_info.to_sql('stocks', db.conn, if_exists='append', index=0)
+            except Exception as e:
+                dt_errors[sym] = ERROR_EXCEPTION.format(type(e).__name__, e)
+                df = pd.DataFrame([{'sym':sym}])
+                df.to_sql('stocks_error', db.conn, if_exists='append', index=0)
+        # print errors
+        if dt_errors:
+            [print(ERROR_SUMMARY.format(sym, dt_errors[sym])) for sym in dt_errors]
+            print(ERROR_PCT.format(len(dt_errors), len(ls_sym), len(dt_errors)/len(ls_sym)))
+        # remove duplicates
+        db_remove_dups_stocks(db)
     beeps(1)
 
 ###################
 # Update prices_d #
 ###################
-print(MSG_PRICES_D_1)
-# get max date present
-q = '''
-    SELECT DATE(MAX(date))
-      FROM prices_d
-     WHERE sym='IBM'
-'''
-max_date_str = pd.read_sql(q, db.conn).iloc[0,0]
-# check dates
-end = add_days(datetime.datetime.today().strftime('%Y-%m-%d'), 3) #today's date plus 3 days
-df = yf.download('IBM', start=max_date_str, end=end, interval='1d', progress=0).reset_index()
-df = df[df['Date'].astype('str')>max_date_str]
-if not df.empty:
-    print(MSG_PRICES_D_2.format(max_date_str, end))
-    # get ls_sym
+if UPDATE_PRICES_D:
+    print(MSG_PRICES_D_1)
+    # get max date present
     q = '''
-        SELECT sym
-          FROM stocks
-         WHERE sec IS NOT NULL
+        SELECT DATE(MAX(date))
+          FROM prices_d
+         WHERE sym='IBM'
     '''
-    ls_sym = pd.read_sql(q, db.conn)['sym'].to_list()
-    # extract
-    dt_cols = {
-        'sym':'sym',
-        'Date':'date',
-        'Open':'open',
-        'High':'high',
-        'Low':'low',
-        'Adj Close':'adj_close',
-        'Volume':'volume',
-    }
-    ls_df = []
-    dt_errors = {}
-    for i, sym in enumerate(tqdm(ls_sym)):
-        try:
-            with suppress_stdout():
-                df = yf.download(sym, period = '1mo', interval='1d', progress=0).reset_index()
-            df['sym'] = sym
-            df = df.rename(columns=dt_cols)
-            df = df[list(dt_cols.values())]
-            ls_df.append(df)
-        except Exception as e:
-            dt_errors[sym] = ERROR_EXCEPTION.format(type(e).__name__, e)
-    if dt_errors:
-        [print(ERROR_SUMMARY.format(sym, dt_errors[sym])) for sym in dt_errors]
-        print(ERROR_PCT.format(len(dt_errors), len(ls_sym), len(dt_errors)/len(ls_sym)))
-    if ls_df:
-        df = pd.concat(ls_df)
-        df.to_sql('prices_d', db.conn, if_exists='append', index=0)
-        db_remove_dups_prices_d(db, max_date_str)
-beeps()
+    max_date_str = pd.read_sql(q, db.conn).iloc[0,0]
+    # check dates
+    end = add_days(datetime.datetime.today().strftime('%Y-%m-%d'), 3) #today's date plus 3 days
+    df = yf.download('IBM', start=max_date_str, end=end, interval='1d', progress=0).reset_index()
+    df = df[df['Date'].astype('str')>max_date_str]
+    if not df.empty:
+        print(MSG_PRICES_D_2.format(max_date_str, end))
+        # get ls_sym
+        q = '''
+            SELECT sym
+              FROM stocks
+             WHERE sec IS NOT NULL
+        '''
+        ls_sym = pd.read_sql(q, db.conn)['sym'].to_list()
+        # extract
+        dt_cols = {
+            'sym':'sym',
+            'Date':'date',
+            'Open':'open',
+            'High':'high',
+            'Low':'low',
+            'Adj Close':'adj_close',
+            'Volume':'volume',
+        }
+        ls_df = []
+        dt_errors = {}
+        for i, sym in enumerate(tqdm(ls_sym)):
+            try:
+                with suppress_stdout():
+                    df = yf.download(sym, period = '1mo', interval='1d', progress=0).reset_index()
+                df['sym'] = sym
+                df = df.rename(columns=dt_cols)
+                df = df[list(dt_cols.values())]
+                ls_df.append(df)
+            except Exception as e:
+                dt_errors[sym] = ERROR_EXCEPTION.format(type(e).__name__, e)
+        if dt_errors:
+            [print(ERROR_SUMMARY.format(sym, dt_errors[sym])) for sym in dt_errors]
+            print(ERROR_PCT.format(len(dt_errors), len(ls_sym), len(dt_errors)/len(ls_sym)))
+        if ls_df:
+            df = pd.concat(ls_df)
+            df.to_sql('prices_d', db.conn, if_exists='append', index=0)
+            db_remove_dups_prices_d(db, max_date_str)
+    beeps(1)
+
+###################
+# Update prices_m #
+###################
+if UPDATE_PRICES_M:
+    print(MSG_PRICES_M_1)
+    # get max date present
+    q = '''
+        SELECT DATE(MAX(datetime))
+          FROM prices_m
+         WHERE sym='IBM'
+    '''
+    max_date_str = pd.read_sql(q, db.conn).iloc[0,0]
+    # get missing dates
+    df = yf.download('IBM', period='1y', interval='1d', progress=0).reset_index()
+    df['Date']= df['Date'].astype('str')
+    ls_date_str = df[df['Date']>max_date_str]['Date'].to_list()
+    if ls_date_str:
+        print(MSG_PRICES_M_2.format(ls_date_str))
+        # get ls_sym
+        q = '''
+            SELECT sym
+              FROM stocks
+             WHERE sec IS NOT NULL
+        '''
+        ls_sym = pd.read_sql(q, db.conn)['sym'].to_list()
+        # extract and load
+        df_prices_m = get_df_prices_m(ls_sym, ls_date_str)
+        if not df_prices_m.empty:
+            df_prices_m.to_sql('prices_m', db.conn, if_exists='append', index=0)
+            db_remove_dups_prices_m(db, ls_date_str[0])
+        beeps(1)
+beeps(3)
