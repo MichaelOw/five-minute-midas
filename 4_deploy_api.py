@@ -166,7 +166,7 @@ def update_predictions():
     while 1:
         dt_error = {}
         idx_not_skip = -df_sym['sym'].isin(ls_skip)
-        for i, tup in tqdm(df_sym[idx_not_skip].iterrows(), total=df_sym.shape[0]):
+        for i, tup in tqdm(df_sym[idx_not_skip].iterrows(), total=df_sym[idx_not_skip].shape[0]):
             while pause:
                 time.sleep(BUFFER_SECONDS)
             sym = tup['sym']
