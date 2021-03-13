@@ -494,7 +494,11 @@ def check_prices_d_updated(date_str_tdy, db):
     '''
     df = yf.download('IBM', period = '5d', interval='1d', progress=0).reset_index()
     date_str_last = df[df['Date']<date_str_tdy]['Date'].dt.date.astype('str').to_list()[-1]
-    q = 'select date(max(date)) as date from prices_d'
+    q = '''
+        SELECT DATE(MAX(date)) AS date
+          FROM prices_d
+         WHERE DATE(date) < '{}'
+    '''.format(date_str_tdy)
     df = pd.read_sql(q, db.conn)
     date_str_latest = df['date'].values[0]
     if date_str_latest != date_str_last:
