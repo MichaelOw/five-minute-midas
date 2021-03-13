@@ -207,7 +207,7 @@ if UPDATE_PRICES_D:
         for i, sym in enumerate(tqdm(ls_sym)):
             try:
                 with suppress_stdout():
-                    df = yf.download(sym, period = '1mo', interval='1d', progress=0).reset_index()
+                    df = yf.download(sym, period = '5d', interval='1d', progress=0).reset_index() #'1mo'
                 df['sym'] = sym
                 df = df.rename(columns=dt_cols)
                 df = df[list(dt_cols.values())]
