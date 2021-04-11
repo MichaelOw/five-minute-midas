@@ -52,19 +52,22 @@ def get_df_prices_m(ls_sym, ls_date_str, candles_min = 200):
     '''
     ls_df = []
     dt_errors = {}
-    for i, sym in enumerate(tqdm(ls_sym)):
-        try:
-            df = get_df_prices(sym, ls_date_str[0], ls_date_str[-1])
-            len_unique_dates = len(df['datetime'].dt.date.unique())
-            len_candles_per_day = df.shape[0]/len_unique_dates
-            if len_unique_dates<len(ls_date_str):
-                dt_errors[sym] = ERROR_UNIQUE_DATES.format(len_unique_dates, len(ls_date_str))
-            elif len_candles_per_day<candles_min:
-                dt_errors[sym] = ERROR_CANDLES_PER_DAY.format(len_candles_per_day, candles_min)
-            else:
-                ls_df.append(df)
-        except Exception as e:
-            dt_errors[sym] = ERROR_EXCEPTION.format(type(e).__name__, e)
+    n = 3
+    for ls_date_str_n in [ls_date_str[i * n:(i + 1) * n] for i in range((len(ls_date_str) + n - 1) // n )]:
+        print(MSG_PRICES_M_2.format(ls_date_str_n))
+        for i, sym in enumerate(tqdm(ls_sym)):
+            try:
+                df = get_df_prices(sym, ls_date_str_n[0], ls_date_str_n[-1])
+                len_unique_dates = len(df['datetime'].dt.date.unique())
+                len_candles_per_day = df.shape[0]/len_unique_dates
+                if len_unique_dates<len(ls_date_str_n):
+                    dt_errors[sym] = ERROR_UNIQUE_DATES.format(len_unique_dates, len(ls_date_str_n))
+                elif len_candles_per_day<candles_min:
+                    dt_errors[sym] = ERROR_CANDLES_PER_DAY.format(len_candles_per_day, candles_min)
+                else:
+                    ls_df.append(df)
+            except Exception as e:
+                dt_errors[sym] = ERROR_EXCEPTION.format(type(e).__name__, e)
     if dt_errors:
         [print(ERROR_SUMMARY.format(sym, dt_errors[sym])) for sym in dt_errors]
         print(ERROR_PCT.format(len(dt_errors), len(ls_sym), len(dt_errors)/len(ls_sym)))
@@ -207,7 +210,7 @@ if UPDATE_PRICES_D:
         for i, sym in enumerate(tqdm(ls_sym)):
             try:
                 with suppress_stdout():
-                    df = yf.download(sym, period = '5d', interval='1d', progress=0).reset_index() #'1mo'
+                    df = yf.download(sym, period = '1mo', interval='1d', progress=0).reset_index() #'1mo', '5d'
                 df['sym'] = sym
                 df = df.rename(columns=dt_cols)
                 df = df[list(dt_cols.values())]
@@ -220,7 +223,7 @@ if UPDATE_PRICES_D:
         if ls_df:
             df = pd.concat(ls_df)
             df.to_sql('prices_d', db.conn, if_exists='append', index=0)
-            db_remove_dups_prices_d(db, max_date_str)
+            db_remove_dups_prices_d(db)
     beeps(1)
 
 ###################
@@ -240,7 +243,6 @@ if UPDATE_PRICES_M:
     df['Date']= df['Date'].astype('str')
     ls_date_str = df[df['Date']>max_date_str]['Date'].to_list()
     if ls_date_str:
-        print(MSG_PRICES_M_2.format(ls_date_str))
         # get ls_sym
         q = '''
             SELECT sym

@@ -201,22 +201,19 @@ def db_remove_dups_prices_m(db, date_str):
     '''.format(date_str, date_str)
     db.execute(q)
 
-def db_remove_dups_prices_d(db, date_str):
+def db_remove_dups_prices_d(db):
     '''Removes duplicates in table prices_d.
     Starts looking in dates >= date_str
     Args:
         db (DataBase object)
-        date_str (str): e.g. 2020-12-24
     '''
     print('Removing duplicates...')
     q = '''
         DELETE
           FROM prices_d
-         WHERE DATE(date)>='{}'
-           AND ROWID NOT IN
+         WHERE ROWID NOT IN
                (SELECT MAX(ROWID)
                  FROM prices_d
-                WHERE DATE(date)>='{}'
                 GROUP BY sym, date)
-    '''.format(date_str, date_str)
+    '''
     db.execute(q)
