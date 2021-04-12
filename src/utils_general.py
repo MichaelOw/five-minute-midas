@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import datetime
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -217,3 +218,38 @@ def db_remove_dups_prices_d(db):
                 GROUP BY sym, date)
     '''
     db.execute(q)
+
+def is_next_day(date_str_prv, date_str):
+    '''Returns 1 if date is one day after previous, 0 otherwise
+    Args:
+        date_str_prv (str): e.g. '2020-01-01'
+        date_str (str): e.g. '2020-01-01'
+    Returns:
+        is_next_day (int)
+    '''
+    delta = datetime.datetime.strptime(date_str, '%Y-%m-%d') - datetime.datetime.strptime(date_str_prv, '%Y-%m-%d')
+    if delta.days == 1:
+        return 1
+    return 0
+
+def get_ls_date_str_chunks(ls_date_str):
+    '''Returns list of lists of date strings partitioned by day gaps
+    Args:
+        ls_date_str (List of str): e.g. ['2021-03-31', '2021-04-01', '2021-04-05']
+    Returns:
+        ls_date_str_chunks (List of Lists of str): e.g. [['2021-03-31', '2021-04-01'], ['2021-04-05']]
+    '''
+    ls_date_str = sorted(ls_date_str)
+    ls_date_str_chunks = []
+    ls_temp = []
+    date_str_prv = ''
+    for date_str in ls_date_str:
+        if date_str_prv == '' or is_next_day(date_str_prv, date_str):
+            date_str_prv = date_str
+            ls_temp.append(date_str)
+        else:
+            date_str_prv = date_str
+            ls_date_str_chunks.append(ls_temp)
+            ls_temp = [date_str]
+    ls_date_str_chunks.append(ls_temp)
+    return ls_date_str_chunks

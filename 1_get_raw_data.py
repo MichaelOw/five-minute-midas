@@ -17,6 +17,7 @@ from src.utils_stocks import suppress_stdout
 from src.utils_general import db_remove_dups_stocks
 from src.utils_general import db_remove_dups_prices_m
 from src.utils_general import db_remove_dups_prices_d
+from src.utils_general import get_ls_date_str_chunks
 # directories
 DIR_DB = os.path.join(os.getcwd(), 'data', 'db')
 DIR_DB_DEMO = os.path.join(os.getcwd(), 'data', 'demo')
@@ -51,28 +52,30 @@ def get_df_prices_m(ls_sym, ls_date_str, candles_min = 200):
         df_prices_m (pandas.DataFrame)
     '''
     ls_df = []
-    dt_errors = {}
     n = 3
-    for ls_date_str_n in [ls_date_str[i * n:(i + 1) * n] for i in range((len(ls_date_str) + n - 1) // n )]:
-        print(MSG_PRICES_M_2.format(ls_date_str_n))
+    ls_date_str_chunks = get_ls_date_str_chunks(ls_date_str)
+    for ls_date_str_chunk in ls_date_str_chunks:
+        print(MSG_PRICES_M_2.format(ls_date_str_chunk))
+        dt_errors = {}
         for i, sym in enumerate(tqdm(ls_sym)):
             try:
-                df = get_df_prices(sym, ls_date_str_n[0], ls_date_str_n[-1])
+                df = get_df_prices(sym, ls_date_str_chunk[0], ls_date_str_chunk[-1])
                 len_unique_dates = len(df['datetime'].dt.date.unique())
                 len_candles_per_day = df.shape[0]/len_unique_dates
-                if len_unique_dates<len(ls_date_str_n):
-                    dt_errors[sym] = ERROR_UNIQUE_DATES.format(len_unique_dates, len(ls_date_str_n))
+                if len_unique_dates<len(ls_date_str_chunk):
+                    dt_errors[sym] = ERROR_UNIQUE_DATES.format(len_unique_dates, len(ls_date_str_chunk))
                 elif len_candles_per_day<candles_min:
                     dt_errors[sym] = ERROR_CANDLES_PER_DAY.format(len_candles_per_day, candles_min)
                 else:
                     ls_df.append(df)
             except Exception as e:
                 dt_errors[sym] = ERROR_EXCEPTION.format(type(e).__name__, e)
-    if dt_errors:
-        [print(ERROR_SUMMARY.format(sym, dt_errors[sym])) for sym in dt_errors]
-        print(ERROR_PCT.format(len(dt_errors), len(ls_sym), len(dt_errors)/len(ls_sym)))
-    df_prices_m = pd.concat(ls_df)
-    return df_prices_m
+        if dt_errors:
+            [print(ERROR_SUMMARY.format(sym, dt_errors[sym])) for sym in dt_errors]
+            print(ERROR_PCT.format(len(dt_errors), len(ls_sym), len(dt_errors)/len(ls_sym)))
+    if ls_df:
+        return pd.concat(ls_df)
+    return pd.DataFrame()
 
 #################
 # Initialize db #
@@ -242,6 +245,7 @@ if UPDATE_PRICES_M:
     df = yf.download('IBM', period='1y', interval='1d', progress=0).reset_index()
     df['Date']= df['Date'].astype('str')
     ls_date_str = df[df['Date']>max_date_str]['Date'].to_list()
+    ls_date_str = ['2021-04-01', '2021-04-05', '2021-04-06']
     if ls_date_str:
         # get ls_sym
         q = '''
