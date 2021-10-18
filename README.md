@@ -2,7 +2,7 @@
 *The most famous King **Midas** is popularly remembered in Greek mythology for his ability to turn everything he touched into gold. - Wikipedia*
 - Read the [Medium article](https://michael-ow.medium.com/how-i-used-a-random-forest-classifier-to-day-trade-for-2-months-part-i-9c00d96d254c) on this project!
 ## Overview
-- Predicting profitable day trading positions by fitting a random forest classifier on historical minute-level price data
+- Predicting profitable day trading positions by fitting a random forest classifier on historical minute-level stock price data
 - Independent end-to-end machine learning project, from data collection to model deployment
 - Try the [Web App Demo](https://five-minute-midas.herokuapp.com/)!
 <img src="data/demo/demo.gif" width="50%" height="50%">
